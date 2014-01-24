@@ -61,7 +61,17 @@ for node in $(crowbar machines list); do
     continue
   fi
 
-  node_fqdn=$(knife node show -a fqdn $node | awk '{print $2;}')
+  node_data=$(knife node show -a fqdn -a target_platform "$node")
+
+  node_fqdn=$(echo "$node_data" | grep ^fqdn: | awk '{print $2;}')
+  node_target_platform=$(echo "$node_data" | grep ^target_platform: | awk '{print $2;}')
+
+  # ignore hyper-v nodes: we can't interact with them and they'll have to be
+  # reinstalled
+  if [[ $node_target_platform == windows-* || $node_target_platform == hyperv-* ]]; then
+    continue
+  fi
+
   if test "x$node_fqdn" == "x$ADMIN_FQDN"; then
     admin_node="$node"
     continue
