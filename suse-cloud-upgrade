@@ -1,0 +1,126 @@
+#!/bin/bash
+# vim: sw=2 et
+#
+# Copyright 2014, SUSE
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+set -e
+
+# Make sure the variables we use are not set
+SUSE_VERBOSE=
+SUSE_LOGFILE=
+
+### Usage
+
+usage () {
+    cat <<EOF
+`basename $0` [-h|--help] [-v|--verbose]
+
+Upgrade SUSE Cloud 2.0 to SUSE Cloud 3.
+EOF
+    exit
+}
+
+while test $# -gt 0; do
+    case "$1" in
+        -h|--help|--usage|-\?) usage ;;
+        -v|--verbose) SUSE_VERBOSE=1 ;;
+        *) ;;
+    esac
+    shift
+done
+
+export SUSE_VERBOSE
+
+
+### Common loading and checks
+
+SCRIPT_LIBDIR=/usr/lib/suse-cloud-upgrade
+if test ! -f "${SCRIPT_LIBDIR}/common"; then
+  SCRIPT_LIBDIR="`dirname $0`/lib"
+  if test ! -f "${SCRIPT_LIBDIR}/common"; then
+    echo "Internal error: cannot find helpers."
+    exit 1
+  fi
+fi
+
+source "${SCRIPT_LIBDIR}/common"
+
+check_crowbar_key_or_fail
+suse_cloud_version=$(get_installed_suse_cloud_version)
+
+
+### Many checks for weird situations
+
+if test -z "$suse_cloud_version"; then
+  echo "Cannot detect an installation of SUSE Cloud. Is this running on the Administration Server?"
+  exit 1
+fi
+
+if test "$suse_cloud_version" != "2.0" -a "$suse_cloud_version" != "3"; then
+  echo "Can only upgrade from SUSE Cloud 2.0 to SUSE Cloud 3."
+  exit 1
+fi
+
+if test "$suse_cloud_version" == "3" -a ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
+  echo "SUSE Cloud 3 is already installed, or the upgrade process was not followed!"
+  exit 1
+fi
+
+if test "$suse_cloud_version" == "2.0" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
+  echo "First step of the upgrade process was already completed; please update packages on the Administration Server."
+  exit 1
+fi
+
+if test ! -f "${UPGRADE_DATA_DIR}/pre.run" -a -f "${UPGRADE_DATA_DIR}/post.run"; then
+  echo "Second step of the upgrade process was completed before first step!"
+  exit 1
+fi
+
+if test -f "${UPGRADE_DATA_DIR}/pre.run" -a -f "${UPGRADE_DATA_DIR}/post.run"; then
+  echo "SUSE Cloud upgrade seems to have been completed already!"
+  exit 0
+fi
+
+
+### Try to do the upgrade!
+
+if test ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
+  if ! ask_yes_no_default_no "Do you want to start the SUSE Cloud upgrade?"; then
+    exit 0
+  fi
+
+  if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-2.0-to-3-pre"; then
+    echo "First step of the upgrade failed. Please contact the support".
+    exit 1
+  fi
+
+  echo
+  echo "First step of the upgrade completed!"
+  echo "Please update packages on the Administration Server, and then re-run this script."
+elif test ! -f "${UPGRADE_DATA_DIR}/post.run"; then
+  if ! ask_yes_no_default_no "Do you want to continue the SUSE Cloud upgrade?"; then
+    exit 0
+  fi
+
+  if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-2.0-to-3-post"; then
+    echo "First step of the upgrade failed. Please contact the support".
+    exit 1
+  fi
+
+  echo
+  echo "Second step of the upgrade completed!"
+  echo "Please refer to the deployment guide for the next steps to complete the upgrade."
+fi

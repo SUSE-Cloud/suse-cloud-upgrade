@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # vim: sw=2 et
 #
 # Copyright 2014, SUSE
@@ -18,41 +18,33 @@
 
 set -e
 
-UPDATE_DATA_DIR=/var/lib/crowbar/upgrade-suse-cloud-2.0-to-3
+SUSE_LOGFILE="/var/log/crowbar/upgrade/`basename $0`.log"
+source "`dirname $0`/common"
 
-if test ! -f "${UPDATE_DATA_DIR}/pre.run"; then
+
+if test ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
   echo "upgrade-suse-cloud-2.0-to-3-pre needs to be run first."
   exit 1
 fi
 
-if test -f "${UPDATE_DATA_DIR}/post.run"; then
+if test -f "${UPGRADE_DATA_DIR}/post.run"; then
   echo "This script has already been run."
   exit 1
 fi
 
 
-### Check that we can talk to crowbar
-if test -z "$CROWBAR_KEY"; then
-  echo "CROWBAR_KEY environment variable is not set! Has SUSE Cloud been installed?"
-  exit 1
-fi
+check_crowbar_key_or_fail
+suse_cloud_version=$(get_installed_suse_cloud_version)
 
-
-### Check that currently installed version is Cloud 2.0
-if test ! -f /etc/products.d/suse-cloud.prod; then
-  echo "SUSE Cloud does not seem to be installed."
-  exit 1
-fi
-
-# extract the version out of suse-cloud.prod
-out=$(LANG=C xmllint --stream --pattern "/product/version" --debug /etc/products.d/suse-cloud.prod | grep -A 1 "matches pattern" | grep "#text" | sed 's/.* [0-9] //')
-if test "x$out" != "x3"; then
+if test "x$suse_cloud_version" != "x3"; then
   echo "Current installed version of SUSE Cloud is not 3: $out"
   exit 1
 fi
 
 
 ### Reinstall the barclamps
+echo_summary "Reinstalling barclamps..."
+
 # order matters because of dependencies!
 for barclamp in crowbar deployer dns ipmi logging network ntp provisioner \
          database rabbitmq keystone swift ceph glance cinder neutron nova \
@@ -69,6 +61,8 @@ done
 
 
 ### Drop remaining quantum bits
+echo_summary "Removing obsolete data..."
+
 knife cookbook delete -y quantum || true
 knife role delete -y quantum-server || true
 knife data bag delete -y barclamps quantum || true
@@ -84,6 +78,8 @@ knife role delete -y ceph-store || true
 
 
 ### Crowbar can run again
+echo_summary "Starting Crowbar..."
+
 # Make sure that all files are up-to-date
 chef-client
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
@@ -93,10 +89,12 @@ rccrowbar restart
 
 ### quantum -> neutron
 # we only migrate a proposal named "default"
-if test -f "${UPDATE_DATA_DIR}/quantum/bc-quantum-default.json"; then
+if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"; then
+  echo_summary "Finishing the quantum -> neutron migration..."
+
   crowbar neutron proposal create default
 
-  OLDJSONFILE="${UPDATE_DATA_DIR}/quantum/bc-quantum-default.json"
+  OLDJSONFILE="${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"
   JSONFILE=$(mktemp --suffix=.json)
   crowbar neutron proposal show default > "$JSONFILE"
   /opt/dell/bin/json-edit "$JSONFILE" -a attributes.neutron.use_ml2 --raw -v "false"
@@ -119,7 +117,7 @@ if test -f "${UPDATE_DATA_DIR}/quantum/bc-quantum-default.json"; then
     /opt/dell/bin/json-edit "$JSONFILE" -a attributes.neutron.${attribute} -v "$value"
   done
 
-  if test -f "${UPDATE_DATA_DIR}/quantum/db.stamp"; then
+  if test -f "${UPGRADE_DATA_DIR}/quantum/db.stamp"; then
     # only keep database info if we stamped the database for migration
     # https://wiki.openstack.org/wiki/ReleaseNotes/Havana#Known_Issues_5
     for attribute in db.user db.database; do
@@ -134,8 +132,10 @@ if test -f "${UPDATE_DATA_DIR}/quantum/bc-quantum-default.json"; then
   crowbar neutron proposal edit default --file "$JSONFILE"
 
   rm -f "$JSONFILE"
+else
+  echo "No quantum proposal to migrate."
 fi
 
 
 ### Done
-touch "${UPDATE_DATA_DIR}/post.run"
+touch "${UPGRADE_DATA_DIR}/post.run"

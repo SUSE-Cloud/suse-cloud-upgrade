@@ -1,0 +1,12 @@
+Interaction with chef-client:
+  stop chef-client on all nodes?
+  manually run chef-client after package upgrade?
+
+Other remaining processes on nodes:
+  kill dnsmasq?
+  kill quantum-ns-metadata-proxy?
+
+Require reboot of non-admin nodes?
+  would solve first two issues
+
+Ignore hyperv nodes
