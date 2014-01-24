@@ -54,21 +54,20 @@ ADMIN_FQDN=$(hostname -f)
 
 ### Check that all nodes are powered on
 for node in $(crowbar machines list); do
-  out=$(crowbar machines show "$node" | /opt/dell/barclamps/provisioner/updates/parse_node_data -a crowbar.allocated --)
+  node_data=$(crowbar machines show "$node" | /opt/dell/barclamps/provisioner/updates/parse_node_data -a crowbar.allocated -a fqdn -a target_platform --)
+
+  node_allocated=$(echo "$node_data" | grep ^crowbar.allocated= | cut -d = -f 2-)
+  node_fqdn=$(echo "$node_data" | grep ^fqdn= | cut -d = -f 2-)
+  node_target_platform=$(echo "$node_data" | grep ^target_platform= | cut -d = -f 2-)
 
   # ignore non-allocated node
-  if test "x$out" == "xcrowbar.allocated=false"; then
+  if test "x$node_allocated" == "xfalse"; then
     continue
   fi
 
-  node_data=$(knife node show -a fqdn -a target_platform "$node")
-
-  node_fqdn=$(echo "$node_data" | grep ^fqdn: | awk '{print $2;}')
-  node_target_platform=$(echo "$node_data" | grep ^target_platform: | awk '{print $2;}')
-
   # ignore hyper-v nodes: we can't interact with them and they'll have to be
   # reinstalled
-  if [[ $node_target_platform == windows-* || $node_target_platform == hyperv-* ]]; then
+  if [[ "x$node_target_platform" == xwindows-* || "x$node_target_platform" == xhyperv-* ]]; then
     continue
   fi
 
