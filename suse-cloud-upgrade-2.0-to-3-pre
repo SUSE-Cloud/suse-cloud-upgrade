@@ -1,0 +1,165 @@
+#!/bin/sh
+# vim: sw=2 et
+#
+# Copyright 2014, SUSE
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+set -e
+
+
+UPDATE_DATA_DIR=/var/lib/crowbar/upgrade-suse-cloud-2.0-to-3
+
+if test -f "${UPDATE_DATA_DIR}/pre.run"; then
+  echo "This script has already been run."
+  exit 1
+fi
+
+
+### Check that we can talk to crowbar
+if test -z "$CROWBAR_KEY"; then
+  echo "CROWBAR_KEY environment variable is not set! Has SUSE Cloud 2.0 been installed?"
+  exit 1
+fi
+
+out=$(crowbar crowbar list)
+if test "x$out" != "xdefault"; then
+  echo "Unexpected results when checking for communication with Crowbar server."
+  exit 1
+fi
+
+### Check that currently installed version is Cloud 2.0
+if test ! -f /etc/products.d/suse-cloud.prod; then
+  echo "SUSE Cloud does not seem to be installed."
+  exit 1
+fi
+
+# extract the version out of suse-cloud.prod
+out=$(LANG=C xmllint --stream --pattern "/product/version" --debug /etc/products.d/suse-cloud.prod | grep -A 1 "matches pattern" | grep "#text" | sed 's/.* [0-9] //')
+if test "x$out" != "x2.0"; then
+  echo "Current installed version of SUSE Cloud is not 2.0: $out"
+  exit 1
+fi
+
+
+allocated_nodes=
+admin_node=
+ADMIN_FQDN=$(hostname -f)
+mkdir -p "$UPDATE_DATA_DIR"
+
+### Check that all nodes are powered on
+for node in $(crowbar machines list); do
+  out=$(crowbar machines show "$node" | /opt/dell/barclamps/provisioner/updates/parse_node_data -a crowbar.allocated --)
+
+  # ignore non-allocated node
+  if test "x$out" == "xcrowbar.allocated=false"; then
+    continue
+  fi
+
+  node_fqdn=$(knife node show -a fqdn $node | awk '{print $2;}')
+  if test "x$node_fqdn" == "x$ADMIN_FQDN"; then
+    admin_node="$node"
+    continue
+  fi
+
+  if ! ssh "$node" true 2> /dev/null; then
+    echo "Cannot reach $node; all allocated nodes must be powered on!"
+    exit 1
+  fi
+
+  allocated_nodes="$allocated_nodes $node"
+done
+
+
+### Deactivate all proposals
+for barclamp in heat ceilometer nova_dashboard nova quantum cinder glance ceph swift keystone rabbitmq database; do
+  applied_proposals=$(crowbar "$barclamp" list)
+  if test "$applied_proposals" == "No current configurations"; then
+    continue
+  fi
+
+  for proposal in $applied_proposals; do
+    echo "Deactivating proposal $proposal of barclamp ${barclamp}..."
+    crowbar "$barclamp" delete "$proposal"
+  done
+done
+
+# Double-check there's nothing left; we do another loop to avoid a race where
+# the proposal is still listed, just after we deleted it
+sleep 10
+
+for barclamp in heat ceilometer nova_dashboard nova quantum cinder glance ceph swift keystone rabbitmq database; do
+  applied_proposals=$(crowbar "$barclamp" list)
+  if test "$applied_proposals" != "No current configurations"; then
+    echo "Was not able to deactivate all proposals for $barclamp."
+    exit 1
+  fi
+done
+
+
+### Prepare for quantum -> neutron
+echo "Preparing for the quantum -> neutron renaming..."
+# this needs to be done while we still have the quantum barclamp installed
+/opt/dell/bin/barclamp_uninstall.rb --rpm quantum
+
+# save info for migration
+mkdir -p "${UPDATE_DATA_DIR}/quantum"
+for databag in $(knife data bag show crowbar | grep "^ *bc-quantum-"); do
+  knife data bag show crowbar "$databag" -F json > "${UPDATE_DATA_DIR}/quantum/${databag}.json"
+done
+
+# https://wiki.openstack.org/wiki/ReleaseNotes/Havana#Known_Issues_5
+# we only do this for the node that will have neutron after the upgrade
+if test -f "${UPDATE_DATA_DIR}/quantum/bc-quantum-default.json" -a ! -f "${UPDATE_DATA_DIR}/quantum/db.stamp"; then
+  OLDJSONFILE="${UPDATE_DATA_DIR}/quantum/bc-quantum-default.json"
+  node=$(/opt/dell/barclamps/provisioner/updates/parse_node_data -a deployment.quantum.elements.quantum-server "$OLDJSONFILE" | sed "s/^[^=]*=//g")
+  if echo $allocated_nodes | grep -q $node; then
+    if ssh "$node" "test -f /etc/sysconfig/quantum -a -d /var/lib/quantum"; then
+      ssh "$node" 'if test ! -f /var/lib/quantum/stamp.grizzly; then . /etc/sysconfig/quantum; /usr/bin/quantum-db-manage --config-file /etc/quantum/quantum.conf --config-file $QUANTUM_PLUGIN_CONF stamp grizzly; touch /var/lib/quantum/grizzly.stamp; fi'
+      touch "${UPDATE_DATA_DIR}/quantum/db.stamp"
+    fi
+  fi
+fi
+
+
+### Stop openstack services
+for node in $allocated_nodes; do
+  echo "Disabling OpenStack services on ${node}..."
+  ssh "$node" 'if ls /etc/init.d/openstack-* &>/dev/null; then for i in /etc/init.d/openstack-*; do initscript=`basename $i`; chkconfig -d $initscript; $i stop; done; fi'
+done
+
+# Make sure all openstack services are down on all nodes before we stop rabbitmq
+sleep 10
+
+# Note: be careful that this is not run on the admin node, where we need rabbitmq!
+for node in $allocated_nodes; do
+  ssh "$node" 'if test -f /etc/init.d/rabbitmq-server; then chkconfig -d rabbitmq-server; /etc/init.d/rabbitmq-server stop; fi'
+done
+
+
+### Update the repos on each node
+for node in $allocated_nodes; do
+  echo "Updating repositories on ${node}..."
+  ssh "$node" 'zypper mr -d SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates'
+done
+
+
+### Disable crowbar while packages get upgraded
+rccrowbar stop
+rm /opt/dell/crowbar_framework/.crowbar-installed-ok
+
+
+### Done
+touch "${UPDATE_DATA_DIR}/pre.run"
+##FIXME: stop chef-client on all nodes? manually run chef-client after package upgrade?
