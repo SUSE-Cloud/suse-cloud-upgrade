@@ -33,6 +33,7 @@ if test -f "${UPGRADE_DATA_DIR}/post.run"; then
 fi
 
 
+ensure_data_dir
 check_crowbar_key_or_fail
 suse_cloud_version=$(get_installed_suse_cloud_version)
 

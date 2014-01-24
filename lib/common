@@ -17,7 +17,6 @@
 #
 
 UPGRADE_DATA_DIR=/var/lib/crowbar/upgrade/suse-cloud-2.0-to-3
-mkdir -p "${UPGRADE_DATA_DIR}"
 
 
 ### Output / log handling
@@ -90,6 +89,10 @@ fi
 
 
 ### Helpers
+
+ensure_data_dir() {
+  mkdir -p "${UPGRADE_DATA_DIR}"
+}
 
 check_crowbar_key_or_fail() {
   if test -z "$CROWBAR_KEY"; then
