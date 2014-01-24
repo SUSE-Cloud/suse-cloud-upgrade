@@ -49,7 +49,6 @@ fi
 
 
 allocated_nodes=
-admin_node=
 ADMIN_FQDN=$(hostname -f)
 
 ### Check that all nodes are powered on
@@ -62,17 +61,19 @@ for node in $(crowbar machines list); do
 
   # ignore non-allocated node
   if test "x$node_allocated" == "xfalse"; then
+    echo "Skipping $node: not allocated"
     continue
   fi
 
   # ignore hyper-v nodes: we can't interact with them and they'll have to be
   # reinstalled
   if [[ "x$node_target_platform" == xwindows-* || "x$node_target_platform" == xhyperv-* ]]; then
+    echo "Skipping $node: running Windows/Hyper-V"
     continue
   fi
 
   if test "x$node_fqdn" == "x$ADMIN_FQDN"; then
-    admin_node="$node"
+    echo "Skipping $node: admin node"
     continue
   fi
 
