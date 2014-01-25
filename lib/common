@@ -125,3 +125,10 @@ json_read () {
         $parse_node_data "$file" -a "$attr"
     fi | sed "s/^[^=]*=//g"
 }
+
+get_repo_url_from() {
+  repo="$1" file="$2"
+  attr_repo="${repo//./\\.}"
+
+  json_read "$file" attributes.provisioner.suse.autoyast.repos.${attr_repo}.url
+}

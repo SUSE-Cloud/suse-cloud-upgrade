@@ -82,6 +82,58 @@ for node in $(crowbar machines list); do
 done
 
 
+### Check that /etc/crowbar/provisioner.json contains updated info about repositories
+mkdir -p "${UPGRADE_DATA_DIR}/provisioner"
+OLD_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-2.0.json"
+ETC_PROVISIONER_JSON="/etc/crowbar/provisioner.json"
+crowbar provisioner proposal show default > "$OLD_PROVISIONER_JSON"
+
+# Check that /etc/crowbar/provisioner.json contains the minimum bits we need...
+all_repos=
+missing_repos=
+for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates} SUSE-Cloud-2.0-{Pool,Updates}; do
+  if test -n "`get_repo_url_from "$repo" "$OLD_PROVISIONER_JSON"`"; then
+    all_repos="$all_repos $repo"
+    if test ! -f "$ETC_PROVISIONER_JSON"; then
+      missing_repos="$missing_repos $repo"
+    elif test -z "`get_repo_url_from "${repo//Cloud-2.0/Cloud-3}" "$ETC_PROVISIONER_JSON"`"; then
+      missing_repos="$missing_repos $repo"
+    fi
+  fi
+done
+
+if test -n "$missing_repos"; then
+  if test ! -f "$ETC_PROVISIONER_JSON"; then
+    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please create a $ETC_PROVISIONER_JSON file with the following repositories:\n  ${all_repos//Cloud-2.0/Cloud-3}"
+  else
+    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please update $ETC_PROVISIONER_JSON so that it contains the following repositories:\n  ${all_repos//Cloud-2.0/Cloud-3}\n(Following repositories are missing:${missing_repos//Cloud-2.0/Cloud-3})"
+  fi
+fi
+
+# ... and check that /etc/crowbar/provisioner.json doesn't contain more than
+# what we need (adding Cloud 3 repo is fine, but adding other repos: we're not
+# sure if it's an error or not)
+if test -f "$ETC_PROVISIONER_JSON"; then
+  all_repos=
+  missing_repos=
+  for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates}; do
+    if test -n "`get_repo_url_from "$repo" "$ETC_PROVISIONER_JSON"`"; then
+      all_repos="$all_repos $repo"
+      if test -z "`get_repo_url_from "${repo}" "$OLD_PROVISIONER_JSON"`"; then
+        missing_repos="$missing_repos $repo"
+      fi
+    fi
+  done
+
+  if test -n "$missing_repos"; then
+    msg="\n$ETC_PROVISIONER_JSON contains the following repositories:\n  ${all_repos}\nHowever, the current provisioner configuration does not contain these repositories:\n  ${missing_repos}\n\nIf you continue with the upgrade process, the missing repositories will automatically be added to the provisioner configuration.\nIf needed, you can stop the upgrade process now and update $ETC_PROVISIONER_JSON to remove repositories.\n\nDo you want to continue?"
+    if ! ask_yes_no_default_no "$msg"; then
+      exit 0
+    fi
+  fi
+fi
+
+
 ### Deactivate all proposals
 echo_summary "Deactivating OpenStack barclamp proposals..."
 
