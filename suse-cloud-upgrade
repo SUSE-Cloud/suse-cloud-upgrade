@@ -21,14 +21,21 @@ set -e
 # Make sure the variables we use are not set
 SUSE_VERBOSE=
 SUSE_LOGFILE=
+DO_UPGRADE=0
+DO_REBOOT=0
 
 ### Usage
 
 usage () {
     cat <<EOF
-`basename $0` [-h|--help] [-v|--verbose]
+`basename $0` [-h|--help] [-v|--verbose] [COMMAND]
 
-Upgrade SUSE Cloud 2.0 to SUSE Cloud 3.
+The following commands are available:
+
+  upgrade             Upgrade SUSE Cloud 2.0 to SUSE Cloud 3
+  reboot-nodes        Reboot all allocated nodes (except Hyper-V nodes and the Administration Server)
+
+If no command is specified, the upgrade command is assumed.
 EOF
     exit
 }
@@ -37,10 +44,18 @@ while test $# -gt 0; do
     case "$1" in
         -h|--help|--usage|-\?) usage ;;
         -v|--verbose) SUSE_VERBOSE=1 ;;
-        *) ;;
+        -*) ;;
+        upgrade) DO_UPGRADE=1 ;;
+        reboot-nodes) DO_REBOOT=1 ;;
+        *) echo "Unknown `basename $0` command: $1"; exit 1 ;;
     esac
     shift
 done
+
+if test $DO_UPGRADE -eq 1 -a $DO_REBOOT -eq 1; then
+  echo "Only one command can be passed."
+  exit 1
+fi
 
 export SUSE_VERBOSE
 
@@ -60,6 +75,25 @@ source "${SCRIPT_LIBDIR}/common"
 
 check_crowbar_key_or_fail
 suse_cloud_version=$(get_installed_suse_cloud_version)
+
+
+##### Special commands
+
+if test $DO_REBOOT -eq 1; then
+  if ! ask_yes_no_default_no "Do you want to reboot all allocated SUSE Cloud nodes (except Hyper-V nodes and the Administration Server)?"; then
+    exit 0
+  fi
+
+  if ! "${SCRIPT_LIBDIR}/reboot-nodes"; then
+    echo "Failure while rebooting nodes; some nodes might not have been rebooted!"
+    exit 1
+  fi
+
+  exit 0
+fi
+
+
+##### Rest of the script is for the upgrade process in two steps
 
 
 ### Many checks for weird situations
@@ -103,7 +137,7 @@ if test ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
   fi
 
   if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-2.0-to-3-pre"; then
-    echo "First step of the upgrade failed. Please contact the support".
+    echo "First step of the upgrade failed. Please contact the support."
     exit 1
   fi
 
@@ -116,7 +150,7 @@ elif test ! -f "${UPGRADE_DATA_DIR}/post.run"; then
   fi
 
   if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-2.0-to-3-post"; then
-    echo "First step of the upgrade failed. Please contact the support".
+    echo "First step of the upgrade failed. Please contact the support."
     exit 1
   fi
 

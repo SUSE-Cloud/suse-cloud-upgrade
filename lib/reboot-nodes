@@ -1,0 +1,45 @@
+#!/bin/bash
+# vim: sw=2 et
+#
+# Copyright 2014, SUSE
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+set -e
+
+SUSE_LOGFILE="/var/log/crowbar/upgrade/`basename $0`.log"
+source "`dirname $0`/common"
+
+check_crowbar_key_or_fail
+
+
+### Check that we can talk to crowbar
+out=$(crowbar crowbar list)
+if test "x$out" != "xdefault"; then
+  die "Unexpected results when checking for communication with Crowbar server."
+fi
+
+
+### Do the magic
+echo_summary "Rebooting nodes..."
+
+allocated_nodes=
+get_allocated_nodes allocated_nodes
+
+for node in $allocated_nodes; do
+  echo "Rebooting ${node}..."
+  crowbar machines reboot $node
+done
+
+echo_summary "Please wait for all nodes to be back in Ready state before continuing."
