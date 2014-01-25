@@ -104,8 +104,7 @@ ensure_data_dir() {
 
 check_crowbar_key_or_fail() {
   if test -z "$CROWBAR_KEY"; then
-    echo "CROWBAR_KEY environment variable is not set! Has SUSE Cloud been installed?"
-    exit 1
+    die "CROWBAR_KEY environment variable is not set! Has SUSE Cloud been installed?"
   fi
 }
 
