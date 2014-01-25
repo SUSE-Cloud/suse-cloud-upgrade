@@ -36,7 +36,7 @@ check_crowbar_key_or_fail
 suse_cloud_version=$(get_installed_suse_cloud_version)
 
 if test "x$suse_cloud_version" != "x3"; then
-  die "Current installed version of SUSE Cloud is not 3: $out"
+  die "Current installed version of SUSE Cloud is not 3: $suse_cloud_version"
 fi
 
 
