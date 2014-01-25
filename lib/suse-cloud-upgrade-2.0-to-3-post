@@ -95,14 +95,14 @@ if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"; then
   OLDJSONFILE="${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"
   JSONFILE=$(mktemp --suffix=.json)
   crowbar neutron proposal show default > "$JSONFILE"
-  /opt/dell/bin/json-edit "$JSONFILE" -a attributes.neutron.use_ml2 --raw -v "false"
+  $json_edit "$JSONFILE" -a attributes.neutron.use_ml2 --raw -v "false"
 
   for raw_attribute in use_syslog verbose debug \
     sql.pool_timeout sql.max_pool_overflow sql.min_pool_size \
     api.service_port \
     ssl.insecure ssl.cert_required ssl.generate_certs; do
-    value=$(/opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.quantum.${raw_attribute} "$OLDJSONFILE" | sed "s/^[^=]*=//g")
-    /opt/dell/bin/json-edit "$JSONFILE" -a attributes.neutron.${raw_attribute} --raw -v "$value"
+    value=$(json_read "$OLDJSONFILE" attributes.quantum.${raw_attribute})
+    $json_edit "$JSONFILE" -a attributes.neutron.${raw_attribute} --raw -v "$value"
   done
 
 
@@ -111,21 +111,21 @@ if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"; then
     networking_plugin networking_mode dhcp_domain \
     api.protocol api.service_host \
     ssl.keyfile ssl.certfile ssl.ca_certs; do
-    value=$(/opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.quantum.${attribute} "$OLDJSONFILE" | sed "s/^[^=]*=//g")
-    /opt/dell/bin/json-edit "$JSONFILE" -a attributes.neutron.${attribute} -v "$value"
+    value=$(json_read "$OLDJSONFILE" attributes.quantum.${attribute})
+    $json_edit "$JSONFILE" -a attributes.neutron.${attribute} -v "$value"
   done
 
   if test -f "${UPGRADE_DATA_DIR}/quantum/db.stamp"; then
     # only keep database info if we stamped the database for migration
     # https://wiki.openstack.org/wiki/ReleaseNotes/Havana#Known_Issues_5
     for attribute in db.user db.database; do
-      value=$(/opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.quantum.${attribute} "$OLDJSONFILE" | sed "s/^[^=]*=//g")
-      /opt/dell/bin/json-edit "$JSONFILE" -a attributes.neutron.${attribute} -v "$value"
+      value=$(json_read "$OLDJSONFILE" attributes.quantum.${attribute})
+      $json_edit "$JSONFILE" -a attributes.neutron.${attribute} -v "$value"
     done
   fi
 
-  value=$(/opt/dell/barclamps/provisioner/updates/parse_node_data -a deployment.quantum.elements.quantum-server "$OLDJSONFILE" | sed "s/^[^=]*=//g")
-  /opt/dell/bin/json-edit "$JSONFILE" -a deployment.neutron.elements.neutron-server --raw -v "[ \"$value\" ]"
+  value=$(json_read "$OLDJSONFILE" deployment.quantum.elements.quantum-server)
+  $json_edit "$JSONFILE" -a deployment.neutron.elements.neutron-server --raw -v "[ \"$value\" ]"
 
   crowbar neutron proposal edit default --file "$JSONFILE"
 
