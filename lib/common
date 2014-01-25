@@ -60,6 +60,10 @@ if use_log; then
     fi
   }
 
+  echo_if_log () {
+    echo $@
+  }
+
   die() {
     # Send empty line & error to logfile
     echo >&4
@@ -77,6 +81,10 @@ else
     else
       echo -e === $@
     fi
+  }
+
+  echo_if_log () {
+    true
   }
 
   die() {
@@ -136,4 +144,46 @@ get_repo_url_from() {
   attr_repo="${repo//./\\.}"
 
   json_read "$file" attributes.provisioner.suse.autoyast.repos.${attr_repo}.url
+}
+
+get_allocated_nodes() {
+  echo_if_log "Finding allocated nodes..."
+  # Note: $1 is the name of the variable that we will set with the result
+  # We can't simple echo the result and capture stdout, because of the logging.
+  if test $# -ne 1; then
+    die "Internal error: get_allocated_nodes requires one argument."
+  fi
+
+  allocated_nodes=
+  admin_fqdn=$(hostname -f)
+
+  for node in $(crowbar machines list); do
+    node_data=$(crowbar machines show "$node" | /opt/dell/barclamps/provisioner/updates/parse_node_data -a crowbar.allocated -a fqdn -a target_platform --)
+
+    node_allocated=$(echo "$node_data" | grep ^crowbar.allocated= | cut -d = -f 2-)
+    node_fqdn=$(echo "$node_data" | grep ^fqdn= | cut -d = -f 2-)
+    node_target_platform=$(echo "$node_data" | grep ^target_platform= | cut -d = -f 2-)
+
+    # ignore non-allocated node
+    if test "x$node_allocated" == "xfalse"; then
+      echo_if_log "Skipping $node: not allocated"
+      continue
+    fi
+
+    # ignore hyper-v nodes: we can't interact with them and they'll have to be
+    # reinstalled
+    if [[ "x$node_target_platform" == xwindows-* || "x$node_target_platform" == xhyperv-* ]]; then
+      echo_if_log "Skipping $node: running Windows/Hyper-V"
+      continue
+    fi
+
+    if test "x$node_fqdn" == "x$admin_fqdn"; then
+      echo_if_log "Skipping $node: admin node"
+      continue
+    fi
+
+    allocated_nodes="$allocated_nodes $node"
+  done
+
+  eval "$1=\"$allocated_nodes\""
 }

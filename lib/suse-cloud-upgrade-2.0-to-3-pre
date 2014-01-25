@@ -45,40 +45,14 @@ if test "x$out" != "xdefault"; then
 fi
 
 
-allocated_nodes=
-ADMIN_FQDN=$(hostname -f)
-
 ### Check that all nodes are powered on
-for node in $(crowbar machines list); do
-  node_data=$(crowbar machines show "$node" | /opt/dell/barclamps/provisioner/updates/parse_node_data -a crowbar.allocated -a fqdn -a target_platform --)
+allocated_nodes=
+get_allocated_nodes allocated_nodes
 
-  node_allocated=$(echo "$node_data" | grep ^crowbar.allocated= | cut -d = -f 2-)
-  node_fqdn=$(echo "$node_data" | grep ^fqdn= | cut -d = -f 2-)
-  node_target_platform=$(echo "$node_data" | grep ^target_platform= | cut -d = -f 2-)
-
-  # ignore non-allocated node
-  if test "x$node_allocated" == "xfalse"; then
-    echo "Skipping $node: not allocated"
-    continue
-  fi
-
-  # ignore hyper-v nodes: we can't interact with them and they'll have to be
-  # reinstalled
-  if [[ "x$node_target_platform" == xwindows-* || "x$node_target_platform" == xhyperv-* ]]; then
-    echo "Skipping $node: running Windows/Hyper-V"
-    continue
-  fi
-
-  if test "x$node_fqdn" == "x$ADMIN_FQDN"; then
-    echo "Skipping $node: admin node"
-    continue
-  fi
-
+for node in $allocated_nodes; do
   if ! ssh "$node" true 2> /dev/null; then
     die "Cannot reach $node; all allocated nodes must be powered on!"
   fi
-
-  allocated_nodes="$allocated_nodes $node"
 done
 
 
