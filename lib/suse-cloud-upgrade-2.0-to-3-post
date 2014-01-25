@@ -23,13 +23,11 @@ source "`dirname $0`/common"
 
 
 if test ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
-  echo "upgrade-suse-cloud-2.0-to-3-pre needs to be run first."
-  exit 1
+  die "upgrade-suse-cloud-2.0-to-3-pre needs to be run first."
 fi
 
 if test -f "${UPGRADE_DATA_DIR}/post.run"; then
-  echo "This script has already been run."
-  exit 1
+  die "This script has already been run."
 fi
 
 
@@ -38,8 +36,7 @@ check_crowbar_key_or_fail
 suse_cloud_version=$(get_installed_suse_cloud_version)
 
 if test "x$suse_cloud_version" != "x3"; then
-  echo "Current installed version of SUSE Cloud is not 3: $out"
-  exit 1
+  die "Current installed version of SUSE Cloud is not 3: $out"
 fi
 
 
