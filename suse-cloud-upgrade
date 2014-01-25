@@ -21,6 +21,7 @@ set -e
 # Make sure the variables we use are not set
 SUSE_VERBOSE=
 SUSE_LOGFILE=
+DO_STATUS=0
 DO_UPGRADE=0
 DO_REBOOT=0
 
@@ -32,10 +33,11 @@ usage () {
 
 The following commands are available:
 
+  status              Display current status of the upgrade
   upgrade             Upgrade SUSE Cloud 2.0 to SUSE Cloud 3
   reboot-nodes        Reboot all allocated nodes (except Hyper-V nodes and the Administration Server)
 
-If no command is specified, the upgrade command is assumed.
+If no command is specified, the status command is assumed.
 EOF
     exit
 }
@@ -45,6 +47,7 @@ while test $# -gt 0; do
         -h|--help|--usage|-\?) usage ;;
         -v|--verbose) SUSE_VERBOSE=1 ;;
         -*) ;;
+        status) DO_STATUS=1 ;;
         upgrade) DO_UPGRADE=1 ;;
         reboot-nodes) DO_REBOOT=1 ;;
         *) echo "Unknown `basename $0` command: $1"; exit 1 ;;
@@ -52,7 +55,13 @@ while test $# -gt 0; do
     shift
 done
 
-if test $DO_UPGRADE -eq 1 -a $DO_REBOOT -eq 1; then
+COUNT_DO=0
+test $DO_STATUS -eq 1 && COUNT_DO=$(($COUNT_DO + 1))
+test $DO_UPGRADE -eq 1 && COUNT_DO=$(($COUNT_DO + 1))
+test $DO_REBOOT -eq 1 && COUNT_DO=$(($COUNT_DO + 1))
+if test $COUNT_DO -eq 0; then
+  DO_STATUS=1
+elif test $COUNT_DO -gt 1; then
   echo "Only one command can be passed."
   exit 1
 fi
@@ -79,6 +88,47 @@ suse_cloud_version=$(get_installed_suse_cloud_version)
 
 ##### Special commands
 
+if test $DO_STATUS -eq 1; then
+  if test -n "$suse_cloud_version"; then
+    echo "Currently installed version of SUSE Cloud: SUSE Cloud $suse_cloud_version"
+  else
+    echo "Currently installed version of SUSE Cloud: unable to detect!"
+  fi
+
+  if test "x$suse_cloud_version" == "x3" -a -f "${UPGRADE_DATA_DIR}/post.run"; then
+    echo
+    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has been completed on the"
+    echo "Administration Server."
+    echo
+    echo "Additional steps might still be required; please refer to the deployment guide."
+  elif test "x$suse_cloud_version" == "x3" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
+    echo
+    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has been started."
+    echo
+    echo "Packages seem to have been updated on the Administration Server, you can"
+    echo "continue the upgrade by calling \"`basename $0` upgrade\"."
+  elif test "x$suse_cloud_version" == "x2.0" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
+    echo
+    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has been started."
+    echo
+    echo "Please update the packages on the Administration Server, with \"zypper up\"."
+  elif test "x$suse_cloud_version" == "x3"; then
+    echo
+    echo "No upgrade available."
+  elif test "x$suse_cloud_version" == "x2.0"; then
+    echo
+    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has not been started."
+    echo
+    echo "You can start the process by calling \"`basename $0` upgrade\"."
+  elif test -n "$suse_cloud_version"; then
+    echo
+    echo "Unrecognized version of SUSE Cloud."
+  fi
+
+  exit 0
+fi
+
+
 if test $DO_REBOOT -eq 1; then
   if ! ask_yes_no_default_no "Do you want to reboot all allocated SUSE Cloud nodes (except Hyper-V nodes and the Administration Server)?"; then
     exit 0
@@ -94,6 +144,9 @@ fi
 
 
 ##### Rest of the script is for the upgrade process in two steps
+if test $DO_UPGRADE -ne 1; then
+  die "Internal error: upgrade command was not passed."
+fi
 
 
 ### Many checks for weird situations
