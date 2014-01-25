@@ -133,7 +133,7 @@ if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json" -a ! -f "${UPGR
   node=$(/opt/dell/barclamps/provisioner/updates/parse_node_data -a deployment.quantum.elements.quantum-server "$OLDJSONFILE" | sed "s/^[^=]*=//g")
   if echo $allocated_nodes | grep -q $node; then
     if ssh "$node" "test -f /etc/sysconfig/quantum -a -d /var/lib/quantum"; then
-      ssh "$node" 'if test ! -f /var/lib/quantum/stamp.grizzly; then . /etc/sysconfig/quantum; /usr/bin/quantum-db-manage --config-file /etc/quantum/quantum.conf --config-file $QUANTUM_PLUGIN_CONF stamp grizzly; touch /var/lib/quantum/grizzly.stamp; fi'
+      ssh "$node" 'if test ! -f /var/lib/quantum/grizzly.stamp; then . /etc/sysconfig/quantum; /usr/bin/quantum-db-manage --config-file /etc/quantum/quantum.conf --config-file $QUANTUM_PLUGIN_CONF stamp grizzly; touch /var/lib/quantum/grizzly.stamp; fi'
       touch "${UPGRADE_DATA_DIR}/quantum/db.stamp"
     fi
   fi
