@@ -114,3 +114,14 @@ ask_yes_no_default_no() {
   read ANSWER
   test "x$ANSWER" == "xy" -o "x$ANSWER" == "Y"
 }
+
+json_edit=/opt/dell/bin/json-edit
+parse_node_data=/opt/dell/barclamps/provisioner/updates/parse_node_data
+json_read () {
+    file="$1" attr="$2"
+    if [ "$file" = '-' ]; then
+        $parse_node_data -a "$attr"
+    elif [ -f "$file" ]; then
+        $parse_node_data "$file" -a "$attr"
+    fi | sed "s/^[^=]*=//g"
+}
