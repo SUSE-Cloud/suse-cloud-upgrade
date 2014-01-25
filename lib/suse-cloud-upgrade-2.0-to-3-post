@@ -85,6 +85,36 @@ touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 rccrowbar restart
 
 
+### Updating the repositories in provisioner barclamp
+OLD_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-2.0.json"
+NEW_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-3.json"
+ETC_PROVISIONER_JSON="/etc/crowbar/provisioner.json"
+if test -f "$ETC_PROVISIONER_JSON"; then
+  if test -n "`json_read "$ETC_PROVISIONER_JSON" attributes.provisioner.suse.autoyast.repos`"; then
+    echo_summary "Updating repositories in provisioner configuration..."
+
+    cp -a "$OLD_PROVISIONER_JSON" "$NEW_PROVISIONER_JSON"
+
+    # drop bits about Cloud 2.0 repos
+    for repo in SUSE-Cloud-2.0-{Pool,Updates}; do
+      attr_repo="${repo//./\\.}"
+      $json_edit "$NEW_PROVISIONER_JSON" -a "attributes.provisioner.suse.autoyast.repos.${attr_repo}" --remove
+    done
+
+    # add/update bits about other repos
+    for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates} SUSE-Cloud-3-{Pool,Updates}; do
+      url="`get_repo_url_from "$repo" "$ETC_PROVISIONER_JSON"`"
+      if test -n "$url"; then
+        attr_repo="${repo//./\\.}"
+        $json_edit "$NEW_PROVISIONER_JSON" -a "attributes.provisioner.suse.autoyast.repos.${attr_repo}.url" -v "$url"
+      fi
+    done
+  fi
+
+  crowbar provisioner proposal edit default --file "$NEW_PROVISIONER_JSON"
+fi
+
+
 ### quantum -> neutron
 # we only migrate a proposal named "default"
 if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"; then
@@ -104,7 +134,6 @@ if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"; then
     value=$(json_read "$OLDJSONFILE" attributes.quantum.${raw_attribute})
     $json_edit "$JSONFILE" -a attributes.neutron.${raw_attribute} --raw -v "$value"
   done
-
 
   for attribute in database_instance rabbitmq_instance keystone_instance \
     service_user service_password \
