@@ -110,7 +110,12 @@ get_installed_suse_cloud_version() {
 }
 
 ask_yes_no_default_no() {
-  echo -n "$1 [y/N] "
+  if use_log; then
+    echo -e "$1 [y/N] " >&4
+    echo -en "$1 [y/N] " >&3
+  else
+    echo -en "$1 [y/N] "
+  fi
   read ANSWER
   test "x$ANSWER" == "xy" -o "x$ANSWER" == "Y"
 }
