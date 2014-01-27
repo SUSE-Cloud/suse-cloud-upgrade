@@ -153,12 +153,18 @@ if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"; then
     done
   fi
 
-  value=$(json_read "$OLDJSONFILE" deployment.quantum.elements.quantum-server)
-  $json_edit "$JSONFILE" -a deployment.neutron.elements.neutron-server --raw -v "[ \"$value\" ]"
+  neutron_server=$(json_read "$OLDJSONFILE" deployment.quantum.elements.quantum-server)
+  $json_edit "$JSONFILE" -a deployment.neutron.elements.neutron-server --raw -v "[ \"$neutron_server\" ]"
 
   crowbar neutron proposal edit default --file "$JSONFILE"
 
   rm -f "$JSONFILE"
+
+  # also manually tweak the database if needed
+  if test -f "${UPGRADE_DATA_DIR}/quantum/db.stamp"; then
+    scp "`dirname $0`/quantum-to-neutron-helper" "${neutron_server}:/var/lib/quantum"
+    ssh "${neutron_server}" "/var/lib/quantum/quantum-to-neutron-helper $(hostname -d)"
+  fi
 else
   echo "No quantum proposal to migrate."
 fi
