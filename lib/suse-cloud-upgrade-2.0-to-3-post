@@ -93,8 +93,9 @@ if test -f "$ETC_PROVISIONER_JSON"; then
   if test -n "`json_read "$ETC_PROVISIONER_JSON" attributes.provisioner.suse.autoyast.repos`"; then
     echo_summary "Updating repositories in provisioner configuration..."
 
-    # FIXME: works because there's no migration involved for this barclamp
-    cp -a "$OLD_PROVISIONER_JSON" "$NEW_PROVISIONER_JSON"
+    # we don't copy $OLD_PROVISIONER_JSON but redownload the json; that's
+    # because there might have been a migration script
+    crowbar provisioner proposal show default > "$NEW_PROVISIONER_JSON"
 
     # drop bits about Cloud 2.0 repos
     for repo in SUSE-Cloud-2.0-{Pool,Updates}; do

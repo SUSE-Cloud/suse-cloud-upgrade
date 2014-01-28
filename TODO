@@ -8,5 +8,3 @@ Other remaining processes on nodes:
 
 Require reboot of non-admin nodes?
   would solve first two issues
-
-provisioner.json edits in -post is done on non-migrated json
