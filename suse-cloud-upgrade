@@ -34,7 +34,7 @@ usage () {
 The following commands are available:
 
   status              Display current status of the upgrade
-  upgrade             Upgrade SUSE Cloud 2.0 to SUSE Cloud 3
+  upgrade             Upgrade SUSE Cloud 3 to SUSE Cloud 4
   reboot-nodes        Reboot all allocated nodes (except Hyper-V nodes and the Administration Server)
 
 If no command is specified, the status command is assumed.
@@ -95,29 +95,29 @@ if test $DO_STATUS -eq 1; then
     echo "Currently installed version of SUSE Cloud: unable to detect!"
   fi
 
-  if test "x$suse_cloud_version" == "x3" -a -f "${UPGRADE_DATA_DIR}/post.run"; then
+  if test "x$suse_cloud_version" == "x4" -a -f "${UPGRADE_DATA_DIR}/post.run"; then
     echo
-    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has been completed on the"
+    echo "Upgrade from SUSE Cloud 3 to SUSE Cloud 4 has been completed on the"
     echo "Administration Server."
     echo
     echo "Additional steps might still be required; please refer to the deployment guide."
-  elif test "x$suse_cloud_version" == "x3" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
+  elif test "x$suse_cloud_version" == "x4" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
     echo
-    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has been started."
+    echo "Upgrade from SUSE Cloud 3 to SUSE Cloud 4 has been started."
     echo
     echo "Packages seem to have been updated on the Administration Server, you can"
     echo "continue the upgrade by calling \"`basename $0` upgrade\"."
-  elif test "x$suse_cloud_version" == "x2.0" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
+  elif test "x$suse_cloud_version" == "x3" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
     echo
-    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has been started."
+    echo "Upgrade from SUSE Cloud 3 to SUSE Cloud 4 has been started."
     echo
     echo "Please update the packages on the Administration Server, with \"zypper up\"."
-  elif test "x$suse_cloud_version" == "x3"; then
+  elif test "x$suse_cloud_version" == "x4"; then
     echo
     echo "No upgrade available."
-  elif test "x$suse_cloud_version" == "x2.0"; then
+  elif test "x$suse_cloud_version" == "x3"; then
     echo
-    echo "Upgrade from SUSE Cloud 2.0 to SUSE Cloud 3 has not been started."
+    echo "Upgrade from SUSE Cloud 3 to SUSE Cloud 4 has not been started."
     echo
     echo "You can start the process by calling \"`basename $0` upgrade\"."
   elif test -n "$suse_cloud_version"; then
@@ -156,17 +156,17 @@ if test -z "$suse_cloud_version"; then
   exit 1
 fi
 
-if test "$suse_cloud_version" != "2.0" -a "$suse_cloud_version" != "3"; then
-  echo "Can only upgrade from SUSE Cloud 2.0 to SUSE Cloud 3."
+if test "$suse_cloud_version" != "3" -a "$suse_cloud_version" != "4"; then
+  echo "Can only upgrade from SUSE Cloud 3 to SUSE Cloud 4."
   exit 1
 fi
 
-if test "$suse_cloud_version" == "3" -a ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
-  echo "SUSE Cloud 3 is already installed, or the upgrade process was not followed!"
+if test "$suse_cloud_version" == "4" -a ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
+  echo "SUSE Cloud 4 is already installed, or the upgrade process was not followed!"
   exit 1
 fi
 
-if test "$suse_cloud_version" == "2.0" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
+if test "$suse_cloud_version" == "3" -a -f "${UPGRADE_DATA_DIR}/pre.run"; then
   echo "First step of the upgrade process was already completed; please update packages on the Administration Server."
   exit 1
 fi
@@ -189,7 +189,7 @@ if test ! -f "${UPGRADE_DATA_DIR}/pre.run"; then
     exit 0
   fi
 
-  if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-2.0-to-3-pre"; then
+  if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-3-to-4-pre"; then
     echo "First step of the upgrade failed. Please contact the support."
     exit 1
   fi
@@ -202,7 +202,7 @@ elif test ! -f "${UPGRADE_DATA_DIR}/post.run"; then
     exit 0
   fi
 
-  if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-2.0-to-3-post"; then
+  if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-3-to-4-post"; then
     echo "First step of the upgrade failed. Please contact the support."
     exit 1
   fi
