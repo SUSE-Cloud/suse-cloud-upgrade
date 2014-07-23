@@ -67,6 +67,7 @@ echo_summary "Starting Crowbar..."
 
 # Make sure that all files are up-to-date
 chef-client
+rcchef-client start
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
 rccrowbar restart
