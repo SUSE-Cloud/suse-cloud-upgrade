@@ -20,6 +20,7 @@ set -e
 
 SUSE_LOGFILE="/var/log/crowbar/upgrade/`basename $0`.log"
 source "`dirname $0`/common"
+source "`dirname $0`/helper-neutron-migration"
 
 
 if test -f "${UPGRADE_DATA_DIR}/pre.run"; then
@@ -31,12 +32,12 @@ ensure_data_dir
 check_crowbar_key_or_fail
 suse_cloud_version=$(get_installed_suse_cloud_version)
 
-if test "x$suse_cloud_version" != "x2.0"; then
-  die "Current installed version of SUSE Cloud is not 2.0: $suse_cloud_version"
+if test "x$suse_cloud_version" != "x3"; then
+  die "Current installed version of SUSE Cloud is not 3: $suse_cloud_version"
 fi
 
-
 echo_summary "Performing sanity checks..."
+
 
 ### Check that we can talk to crowbar
 out=$(crowbar crowbar list)
@@ -58,19 +59,19 @@ done
 
 ### Check that /etc/crowbar/provisioner.json contains updated info about repositories
 mkdir -p "${UPGRADE_DATA_DIR}/provisioner"
-OLD_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-2.0.json"
+OLD_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-3.json"
 ETC_PROVISIONER_JSON="/etc/crowbar/provisioner.json"
 crowbar provisioner proposal show default > "$OLD_PROVISIONER_JSON"
 
 # Check that /etc/crowbar/provisioner.json contains the minimum bits we need...
 all_repos=
 missing_repos=
-for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates} SUSE-Cloud-2.0-{Pool,Updates}; do
+for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates} SLE11-HAE-SP3-{Pool,Updates} SUSE-Cloud-3-{Pool,Updates}; do
   if test -n "`get_repo_url_from "$repo" "$OLD_PROVISIONER_JSON"`"; then
     all_repos="$all_repos $repo"
     if test ! -f "$ETC_PROVISIONER_JSON"; then
       missing_repos="$missing_repos $repo"
-    elif test -z "`get_repo_url_from "${repo//Cloud-2.0/Cloud-3}" "$ETC_PROVISIONER_JSON"`"; then
+    elif test -z "`get_repo_url_from "${repo//Cloud-3/Cloud-4}" "$ETC_PROVISIONER_JSON"`"; then
       missing_repos="$missing_repos $repo"
     fi
   fi
@@ -78,19 +79,19 @@ done
 
 if test -n "$missing_repos"; then
   if test ! -f "$ETC_PROVISIONER_JSON"; then
-    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please create a $ETC_PROVISIONER_JSON file with the following repositories:\n  ${all_repos//Cloud-2.0/Cloud-3}"
+    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please create a $ETC_PROVISIONER_JSON file with the following repositories:\n  ${all_repos//Cloud-3/Cloud-4}"
   else
-    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please update $ETC_PROVISIONER_JSON so that it contains the following repositories:\n  ${all_repos//Cloud-2.0/Cloud-3}\n(Following repositories are missing:${missing_repos//Cloud-2.0/Cloud-3})"
+    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please update $ETC_PROVISIONER_JSON so that it contains the following repositories:\n  ${all_repos//Cloud-3/Cloud-4}\n(Following repositories are missing:${missing_repos//Cloud-3/Cloud-4})"
   fi
 fi
 
 # ... and check that /etc/crowbar/provisioner.json doesn't contain more than
-# what we need (adding Cloud 3 repo is fine, but adding other repos: we're not
+# what we need (adding Cloud 4 repo is fine, but adding other repos: we're not
 # sure if it's an error or not)
 if test -f "$ETC_PROVISIONER_JSON"; then
   all_repos=
   missing_repos=
-  for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates}; do
+  for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates} SLE11-HAE-SP3-{Pool,Updates}; do
     if test -n "`get_repo_url_from "$repo" "$ETC_PROVISIONER_JSON"`"; then
       all_repos="$all_repos $repo"
       if test -z "`get_repo_url_from "${repo}" "$OLD_PROVISIONER_JSON"`"; then
@@ -108,10 +109,16 @@ if test -f "$ETC_PROVISIONER_JSON"; then
 fi
 
 
+### Check if pacemaker barclamp is present (i.e. system is updated)
+if ! rpm -q crowbar-barclamp-pacemaker 2> /dev/null; then
+  die "Pacemaker barclamp not found. Are all updates installed?"
+fi
+
+
 ### Deactivate all proposals
 echo_summary "Deactivating OpenStack barclamp proposals..."
 
-for barclamp in heat ceilometer nova_dashboard nova quantum cinder glance ceph swift keystone rabbitmq database; do
+for barclamp in heat ceilometer nova_dashboard nova neutron cinder glance ceph swift keystone rabbitmq database pacemaker; do
   applied_proposals=$(crowbar "$barclamp" list)
   if test "$applied_proposals" == "No current configurations"; then
     continue
@@ -127,7 +134,7 @@ done
 # the proposal is still listed, just after we deleted it
 sleep 10
 
-for barclamp in heat ceilometer nova_dashboard nova quantum cinder glance ceph swift keystone rabbitmq database; do
+for barclamp in heat ceilometer nova_dashboard nova neutron cinder glance ceph swift keystone rabbitmq database pacemaker; do
   applied_proposals=$(crowbar "$barclamp" list)
   if test "$applied_proposals" != "No current configurations"; then
     die "Was not able to deactivate all proposals for $barclamp."
@@ -135,38 +142,12 @@ for barclamp in heat ceilometer nova_dashboard nova quantum cinder glance ceph s
 done
 
 
-### Prepare for quantum -> neutron
-echo_summary "Preparing for the quantum -> neutron migration..."
-
-# this needs to be done while we still have the quantum barclamp installed
-/opt/dell/bin/barclamp_uninstall.rb --rpm quantum
-
-# save info for migration
-mkdir -p "${UPGRADE_DATA_DIR}/quantum"
-for databag in $(knife data bag show crowbar | grep "^ *bc-quantum-"); do
-  knife data bag show crowbar "$databag" -F json > "${UPGRADE_DATA_DIR}/quantum/${databag}.json"
-done
-
-# https://wiki.openstack.org/wiki/ReleaseNotes/Havana#Known_Issues_5
-# we only do this for the node that will have neutron after the upgrade
-if test -f "${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json" -a ! -f "${UPGRADE_DATA_DIR}/quantum/db.stamp"; then
-  OLDJSONFILE="${UPGRADE_DATA_DIR}/quantum/bc-quantum-default.json"
-  node=$(json_read "$OLDJSONFILE" deployment.quantum.elements.quantum-server)
-  if echo $allocated_nodes | grep -q $node; then
-    if ssh "$node" "test -f /etc/sysconfig/quantum -a -d /var/lib/quantum"; then
-      ssh "$node" 'if test ! -f /var/lib/quantum/grizzly.stamp; then . /etc/sysconfig/quantum; /usr/bin/quantum-db-manage --config-file /etc/quantum/quantum.conf --config-file $QUANTUM_PLUGIN_CONF stamp grizzly; touch /var/lib/quantum/grizzly.stamp; fi'
-      touch "${UPGRADE_DATA_DIR}/quantum/db.stamp"
-    fi
-  fi
-fi
-
-
 ### Stop openstack services
 echo_summary "Stopping OpenStack services..."
 
 for node in $allocated_nodes; do
   echo "Disabling OpenStack services on ${node}..."
-  ssh "$node" 'if ls /etc/init.d/openstack-* &>/dev/null; then for i in /etc/init.d/openstack-*; do initscript=`basename $i`; chkconfig -d $initscript; $i stop; done; fi'
+  ssh "$node" 'rcchef-client stop; if ls /etc/init.d/openstack-* &>/dev/null; then for i in /etc/init.d/openstack-*; do initscript=`basename $i`; chkconfig -d $initscript; $i stop; done; fi'
 done
 
 # Make sure all openstack services are down on all nodes before we stop rabbitmq
@@ -177,17 +158,21 @@ for node in $allocated_nodes; do
   ssh "$node" 'if test -f /etc/init.d/rabbitmq-server; then chkconfig -d rabbitmq-server; /etc/init.d/rabbitmq-server stop; fi'
 done
 
+# Prepare the database migration on the neutron_server nodes
+prepare_neutron_migration
+
 
 ### Update the repos on each node
-echo_summary "Disabling SUSE Cloud 2.0 repositories..."
+echo_summary "Disabling SUSE Cloud 3 repositories..."
 for node in $allocated_nodes; do
   echo "Updating repositories on ${node}..."
-  ssh "$node" 'zypper mr -d SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates'
+  ssh "$node" 'zypper mr -d SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates'
 done
 
 
-### Disable crowbar while packages get upgraded
+### Disable crowbar and chef-client while packages get upgraded
 echo_summary "Stopping Crowbar..."
+rcchef-client stop
 rccrowbar stop
 rm /opt/dell/crowbar_framework/.crowbar-installed-ok
 

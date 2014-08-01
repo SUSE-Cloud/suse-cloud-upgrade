@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-UPGRADE_DATA_DIR=/var/lib/crowbar/upgrade/suse-cloud-2.0-to-3
+UPGRADE_DATA_DIR=/var/lib/crowbar/upgrade/suse-cloud-3-to-4
 
 
 ### Output / log handling
@@ -149,8 +149,9 @@ get_allocated_nodes() {
   echo_if_log "Finding allocated nodes..."
   # Note: $1 is the name of the variable that we will set with the result
   # We can't simple echo the result and capture stdout, because of the logging.
-  if test $# -ne 1; then
-    die "Internal error: get_allocated_nodes requires one argument."
+  # $2 allows to filter for special roles
+  if test $# -lt 1; then
+    die "Internal error: get_allocated_nodes requires at least one argument."
   fi
 
   allocated_nodes=
@@ -183,6 +184,20 @@ get_allocated_nodes() {
 
     allocated_nodes="$allocated_nodes $node"
   done
+
+  # Filter nodes for specific roles
+  if [[ $2 != ""  ]]; then
+    nodes_with_role=$(knife search node "roles:$2" -a name | grep ^name: | cut -d : -f 2)
+
+    # We cannot change allocated_nodes yet, as we need it for string comparison
+    found_nodes=
+    for node in $nodes_with_role; do
+      if [[ $allocated_nodes == *$node* ]]; then
+        found_nodes="$found_nodes $node"
+      fi
+    done
+    allocated_nodes=$found_nodes
+  fi
 
   eval "$1=\"$allocated_nodes\""
 }
