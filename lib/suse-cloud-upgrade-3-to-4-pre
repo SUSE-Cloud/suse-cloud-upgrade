@@ -20,6 +20,7 @@ set -e
 
 SUSE_LOGFILE="/var/log/crowbar/upgrade/`basename $0`.log"
 source "`dirname $0`/common"
+source "`dirname $0`/helper-neutron-migration"
 
 
 if test -f "${UPGRADE_DATA_DIR}/pre.run"; then
@@ -35,8 +36,8 @@ if test "x$suse_cloud_version" != "x3"; then
   die "Current installed version of SUSE Cloud is not 3: $suse_cloud_version"
 fi
 
-
 echo_summary "Performing sanity checks..."
+
 
 ### Check that we can talk to crowbar
 out=$(crowbar crowbar list)
@@ -108,6 +109,12 @@ if test -f "$ETC_PROVISIONER_JSON"; then
 fi
 
 
+### Check if pacemaker barclamp is present (i.e. system is updated)
+if ! rpm -q crowbar-barclamp-pacemaker 2> /dev/null; then
+  die "Pacemaker barclamp not found. Are all updates installed?"
+fi
+
+
 ### Deactivate all proposals
 echo_summary "Deactivating OpenStack barclamp proposals..."
 
@@ -140,7 +147,7 @@ echo_summary "Stopping OpenStack services..."
 
 for node in $allocated_nodes; do
   echo "Disabling OpenStack services on ${node}..."
-  ssh "$node" 'if ls /etc/init.d/openstack-* &>/dev/null; then for i in /etc/init.d/openstack-*; do initscript=`basename $i`; chkconfig -d $initscript; $i stop; done; fi'
+  ssh "$node" 'rcchef-client stop; if ls /etc/init.d/openstack-* &>/dev/null; then for i in /etc/init.d/openstack-*; do initscript=`basename $i`; chkconfig -d $initscript; $i stop; done; fi'
 done
 
 # Make sure all openstack services are down on all nodes before we stop rabbitmq
@@ -151,6 +158,9 @@ for node in $allocated_nodes; do
   ssh "$node" 'if test -f /etc/init.d/rabbitmq-server; then chkconfig -d rabbitmq-server; /etc/init.d/rabbitmq-server stop; fi'
 done
 
+# Prepare the database migration on the neutron_server nodes
+prepare_neutron_migration
+
 
 ### Update the repos on each node
 echo_summary "Disabling SUSE Cloud 3 repositories..."
@@ -160,8 +170,9 @@ for node in $allocated_nodes; do
 done
 
 
-### Disable crowbar while packages get upgraded
+### Disable crowbar and chef-client while packages get upgraded
 echo_summary "Stopping Crowbar..."
+rcchef-client stop
 rccrowbar stop
 rm /opt/dell/crowbar_framework/.crowbar-installed-ok
 

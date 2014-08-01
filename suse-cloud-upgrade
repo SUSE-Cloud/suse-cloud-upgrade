@@ -35,7 +35,8 @@ The following commands are available:
 
   status              Display current status of the upgrade
   upgrade             Upgrade SUSE Cloud 3 to SUSE Cloud 4
-  reboot-nodes        Reboot all allocated nodes (except Hyper-V nodes and the Administration Server)
+  reboot-nodes        Reboot all allocated nodes (except Hyper-V nodes
+                      and the Administration Server)
 
 If no command is specified, the status command is assumed.
 EOF
