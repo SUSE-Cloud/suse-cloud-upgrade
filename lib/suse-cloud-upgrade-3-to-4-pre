@@ -115,6 +115,11 @@ if ! rpm -q crowbar-barclamp-pacemaker 2> /dev/null; then
 fi
 
 
+### Collect neutron-server nodes and write them to a file
+get_allocated_nodes neutron_nodes "neutron-server"
+echo $neutron_nodes > ${UPGRADE_DATA_DIR}/neutron-server.nodes
+
+
 ### Deactivate all proposals
 echo_summary "Deactivating OpenStack barclamp proposals..."
 
