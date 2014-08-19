@@ -21,7 +21,7 @@ UPGRADE_DATA_DIR=/var/lib/crowbar/upgrade/suse-cloud-3-to-5
 prepare_neutron_migration() {
 
   # Get nodes that have the neutron_server role
-  neutron_nodes=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
+  local neutron_nodes=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
 
   for i in $neutron_nodes; do
     ssh $i 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
@@ -35,7 +35,7 @@ prepare_neutron_migration() {
 finish_neutron_migration() {
 
   # Get nodes that have the neutron_server role
-  neutron_nodes=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
+  local neutron_nodes=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
 
   for i in $neutron_nodes; do
     ssh $i 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
