@@ -1,0 +1,70 @@
+#!/usr/bin/python
+#
+# Copyright 2014, SUSE
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import ConfigParser
+import os
+import sqlalchemy
+import sys
+
+if len(sys.argv) != 1:
+    print >>sys.stderr, 'Usage: %s' % sys.argv[0]
+    sys.exit(1)
+
+def get_db_uri(file, group, option):
+    if not os.path.exists(file):
+        return None
+
+    config = ConfigParser.SafeConfigParser()
+    config.read(file)
+    try:
+        return config.get(group, option)
+    except ConfigParser.Error as e:
+        print >>sys.stderr, 'Cannot find database connection information in %s: %s' % (file, e)
+        return None
+
+
+db_uri = get_db_uri('/etc/neutron/neutron.conf', 'database', 'connection')
+if not db_uri:
+    print >>sys.stderr, 'Cannot find database connection information'
+    sys.exit(1)
+
+db = sqlalchemy.create_engine(db_uri)
+try:
+    connection = db.connect()
+except sqlalchemy.exc.SQLAlchemyError as e:
+    print >>sys.stderr, 'Cannot connect to database: %s' % e
+    sys.exit(1)
+
+unique = {}
+to_delete = []
+
+results = connection.execute("SELECT id, agent_type, host, heartbeat_timestamp FROM agents;")
+for row in results:
+    key = (row['host'], row['agent_type'])
+    agents = unique.get(key, [])
+    agents.append((row['host'], row['agent_type'], row['heartbeat_timestamp'], row['id']))
+    unique[key] = agents
+
+for key, value in unique.iteritems():
+    value.sort()
+    value.pop()
+    for (host, agent_type, timestamp, agent_id) in value:
+        to_delete.append((agent_id, agent_type, host))
+
+for agent_id, agent_type, host in to_delete:
+    print 'Deleting duplicated agent "%s" for (host=%s, agent_type=%s)...' % (agent_id, host, agent_type)
+    connection.execute(sqlalchemy.sql.text('DELETE FROM agents WHERE id = :agent'), agent = agent_id)
