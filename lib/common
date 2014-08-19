@@ -148,13 +148,13 @@ get_repo_url_from() {
 }
 
 get_allocated_nodes() {
+  # Note: We can't simple echo the result and capture stdout, because of the
+  # logging. Therefore, the return value of this function lives in the
+  # $get_allocated_nodes_retval variable.
+  #
+  # $1 allows to filter for special roles
+
   echo_if_log "Finding allocated nodes..."
-  # Note: $1 is the name of the variable that we will set with the result
-  # We can't simple echo the result and capture stdout, because of the logging.
-  # $2 allows to filter for special roles
-  if test $# -lt 1; then
-    die "Internal error: get_allocated_nodes requires at least one argument."
-  fi
 
   local allocated_nodes=
   local admin_fqdn=$(hostname -f)
@@ -188,8 +188,8 @@ get_allocated_nodes() {
   done
 
   # Filter nodes for specific roles
-  if [[ $2 != ""  ]]; then
-    local nodes_with_role=$(knife search node "roles:$2" -a name | grep ^name: | cut -d : -f 2)
+  if [[ $1 != ""  ]]; then
+    local nodes_with_role=$(knife search node "roles:$1" -a name | grep ^name: | cut -d : -f 2)
 
     # We cannot change allocated_nodes yet, as we need it for string comparison
     local found_nodes=
@@ -201,5 +201,5 @@ get_allocated_nodes() {
     allocated_nodes=$found_nodes
   fi
 
-  eval "$1=\"$allocated_nodes\""
+  get_allocated_nodes_retval=$allocated_nodes
 }
