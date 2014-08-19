@@ -32,6 +32,19 @@ if test "x$out" != "xdefault"; then
 fi
 
 
+### Preliminary checks
+echo_summary "Performing sanity checks..."
+
+allocated_nodes=
+get_allocated_nodes allocated_nodes
+
+for node in $allocated_nodes; do
+  if ! ssh "$node" 'rpm -q suse-cloud-release &> /dev/null && test "$(rpm -q --qf "%{version}" suse-cloud-release)" == 4'; then
+    die "Packages on $node are not updated."
+  fi
+done
+
+
 ### Prepare the database migration on the neutron_server nodes:
 #   We need to run a migration before enabling the addition of the lbaas plugin,
 #   after the neutron-server node(s) have updated packages
@@ -41,9 +54,6 @@ finish_neutron_migration
 
 ### Do the magic
 echo_summary "Rebooting nodes..."
-
-allocated_nodes=
-get_allocated_nodes allocated_nodes
 
 for node in $allocated_nodes; do
   echo "Rebooting ${node}..."
