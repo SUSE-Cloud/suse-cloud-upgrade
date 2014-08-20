@@ -154,7 +154,12 @@ get_allocated_nodes() {
   #
   # $1 allows to filter for special roles
 
-  echo_if_log "Finding allocated nodes..."
+  local role=$1
+  if test -z "$role"; then
+    echo_if_log "Finding allocated nodes..."
+  else
+    echo_if_log "Finding allocated nodes with role ${role}..."
+  fi
 
   local allocated_nodes=
   local admin_fqdn=$(hostname -f)
@@ -188,8 +193,8 @@ get_allocated_nodes() {
   done
 
   # Filter nodes for specific roles
-  if [[ $1 != ""  ]]; then
-    local nodes_with_role=$(knife search node "roles:$1" -a name | grep ^name: | cut -d : -f 2)
+  if test -n "$role"; then
+    local nodes_with_role=$(knife search node "roles:$role" -a name | grep ^name: | cut -d : -f 2)
 
     # We cannot change allocated_nodes yet, as we need it for string comparison
     local found_nodes=
