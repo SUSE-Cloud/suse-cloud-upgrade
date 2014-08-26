@@ -99,9 +99,9 @@ if test -f "$ETC_PROVISIONER_JSON"; then
         $json_edit "$NEW_PROVISIONER_JSON" -a "attributes.provisioner.suse.autoyast.repos.${attr_repo}.url" -v "$url"
       fi
     done
-  fi
 
-  crowbar provisioner proposal edit default --file "$NEW_PROVISIONER_JSON"
+    crowbar provisioner proposal edit default --file "$NEW_PROVISIONER_JSON"
+  fi
 fi
 
 
