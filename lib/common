@@ -130,7 +130,8 @@ ask_yes_no_default_no() {
 json_edit=/opt/dell/bin/json-edit
 parse_node_data=/opt/dell/barclamps/provisioner/updates/parse_node_data
 json_read () {
-    file="$1" attr="$2"
+    local file="$1"
+    local attr="$2"
     if [ "$file" = '-' ]; then
         $parse_node_data -a "$attr"
     elif [ -f "$file" ]; then
@@ -139,30 +140,36 @@ json_read () {
 }
 
 get_repo_url_from() {
-  repo="$1" file="$2"
-  attr_repo="${repo//./\\.}"
+  local repo="$1"
+  local file="$2"
+  local attr_repo="${repo//./\\.}"
 
   json_read "$file" attributes.provisioner.suse.autoyast.repos.${attr_repo}.url
 }
 
 get_allocated_nodes() {
-  echo_if_log "Finding allocated nodes..."
-  # Note: $1 is the name of the variable that we will set with the result
-  # We can't simple echo the result and capture stdout, because of the logging.
-  # $2 allows to filter for special roles
-  if test $# -lt 1; then
-    die "Internal error: get_allocated_nodes requires at least one argument."
+  # Note: We can't simple echo the result and capture stdout, because of the
+  # logging. Therefore, the return value of this function lives in the
+  # $get_allocated_nodes_retval variable.
+  #
+  # $1 allows to filter for special roles
+
+  local role=$1
+  if test -z "$role"; then
+    echo_if_log "Finding allocated nodes..."
+  else
+    echo_if_log "Finding allocated nodes with role ${role}..."
   fi
 
-  allocated_nodes=
-  admin_fqdn=$(hostname -f)
+  local allocated_nodes=
+  local admin_fqdn=$(hostname -f)
 
   for node in $(crowbar machines list); do
-    node_data=$(crowbar machines show "$node" | /opt/dell/barclamps/provisioner/updates/parse_node_data -a crowbar.allocated -a fqdn -a target_platform --)
+    local node_data=$(crowbar machines show "$node" | /opt/dell/barclamps/provisioner/updates/parse_node_data -a crowbar.allocated -a fqdn -a target_platform --)
 
-    node_allocated=$(echo "$node_data" | grep ^crowbar.allocated= | cut -d = -f 2-)
-    node_fqdn=$(echo "$node_data" | grep ^fqdn= | cut -d = -f 2-)
-    node_target_platform=$(echo "$node_data" | grep ^target_platform= | cut -d = -f 2-)
+    local node_allocated=$(echo "$node_data" | grep ^crowbar.allocated= | cut -d = -f 2-)
+    local node_fqdn=$(echo "$node_data" | grep ^fqdn= | cut -d = -f 2-)
+    local node_target_platform=$(echo "$node_data" | grep ^target_platform= | cut -d = -f 2-)
 
     # ignore non-allocated node
     if test "x$node_allocated" == "xfalse"; then
@@ -186,11 +193,11 @@ get_allocated_nodes() {
   done
 
   # Filter nodes for specific roles
-  if [[ $2 != ""  ]]; then
-    nodes_with_role=$(knife search node "roles:$2" -a name | grep ^name: | cut -d : -f 2)
+  if test -n "$role"; then
+    local nodes_with_role=$(knife search node "roles:$role" -a name | grep ^name: | cut -d : -f 2)
 
     # We cannot change allocated_nodes yet, as we need it for string comparison
-    found_nodes=
+    local found_nodes=
     for node in $nodes_with_role; do
       if [[ $allocated_nodes == *$node* ]]; then
         found_nodes="$found_nodes $node"
@@ -199,5 +206,5 @@ get_allocated_nodes() {
     allocated_nodes=$found_nodes
   fi
 
-  eval "$1=\"$allocated_nodes\""
+  get_allocated_nodes_retval=$allocated_nodes
 }

@@ -42,8 +42,8 @@ finish_neutron_migration
 ### Do the magic
 echo_summary "Rebooting nodes..."
 
-allocated_nodes=
-get_allocated_nodes allocated_nodes
+get_allocated_nodes
+allocated_nodes=$get_allocated_nodes_retval
 
 for node in $allocated_nodes; do
   echo "Rebooting ${node}..."

@@ -47,8 +47,8 @@ fi
 
 
 ### Check that all nodes are powered on
-allocated_nodes=
-get_allocated_nodes allocated_nodes
+get_allocated_nodes
+allocated_nodes=$get_allocated_nodes_retval
 
 for node in $allocated_nodes; do
   if ! ssh "$node" true 2> /dev/null; then
@@ -116,7 +116,8 @@ fi
 
 
 ### Collect neutron-server nodes and write them to a file
-get_allocated_nodes neutron_nodes "neutron-server"
+get_allocated_nodes "neutron-server"
+neutron_nodes=$get_allocated_nodes_retval
 echo $neutron_nodes > ${UPGRADE_DATA_DIR}/neutron-server.nodes
 
 
