@@ -110,7 +110,7 @@ fi
 
 
 ### Check if pacemaker barclamp is present (i.e. system is updated)
-if ! rpm -q crowbar-barclamp-pacemaker 2> /dev/null; then
+if ! rpm -q crowbar-barclamp-pacemaker &> /dev/null; then
   die "Pacemaker barclamp not found. Are all updates installed?"
 fi
 
