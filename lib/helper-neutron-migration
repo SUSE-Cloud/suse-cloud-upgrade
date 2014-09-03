@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-UPGRADE_DATA_DIR=/var/lib/crowbar/upgrade/suse-cloud-3-to-4
+UPGRADE_DATA_DIR=/var/lib/crowbar/upgrade/suse-cloud-3-to-5
 
 prepare_neutron_migration() {
 

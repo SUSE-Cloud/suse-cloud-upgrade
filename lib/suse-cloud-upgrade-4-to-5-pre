@@ -32,8 +32,8 @@ ensure_data_dir
 check_crowbar_key_or_fail
 suse_cloud_version=$(get_installed_suse_cloud_version)
 
-if test "x$suse_cloud_version" != "x3"; then
-  die "Current installed version of SUSE Cloud is not 3: $suse_cloud_version"
+if test "x$suse_cloud_version" != "x4"; then
+  die "Current installed version of SUSE Cloud is not 4: $suse_cloud_version"
 fi
 
 echo_summary "Performing sanity checks..."
@@ -59,19 +59,19 @@ done
 
 ### Check that /etc/crowbar/provisioner.json contains updated info about repositories
 mkdir -p "${UPGRADE_DATA_DIR}/provisioner"
-OLD_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-3.json"
+OLD_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-4.json"
 ETC_PROVISIONER_JSON="/etc/crowbar/provisioner.json"
 crowbar provisioner proposal show default > "$OLD_PROVISIONER_JSON"
 
 # Check that /etc/crowbar/provisioner.json contains the minimum bits we need...
 all_repos=
 missing_repos=
-for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP3-{Pool,Updates} SLE11-HAE-SP3-{Pool,Updates} SUSE-Cloud-3-{Pool,Updates}; do
+for repo in SLE-Cloud SLE-Cloud-PTF SLES11-SP-{Pool,Updates} SLE11-HAE-SP3-{Pool,Updates} SUSE-Cloud-4-{Pool,Updates}; do
   if test -n "`get_repo_url_from "$repo" "$OLD_PROVISIONER_JSON"`"; then
     all_repos="$all_repos $repo"
     if test ! -f "$ETC_PROVISIONER_JSON"; then
       missing_repos="$missing_repos $repo"
-    elif test -z "`get_repo_url_from "${repo//Cloud-3/Cloud-4}" "$ETC_PROVISIONER_JSON"`"; then
+    elif test -z "`get_repo_url_from "${repo//Cloud-4/Cloud-5}" "$ETC_PROVISIONER_JSON"`"; then
       missing_repos="$missing_repos $repo"
     fi
   fi
@@ -79,14 +79,14 @@ done
 
 if test -n "$missing_repos"; then
   if test ! -f "$ETC_PROVISIONER_JSON"; then
-    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please create a $ETC_PROVISIONER_JSON file with the following repositories:\n  ${all_repos//Cloud-3/Cloud-4}"
+    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please create a $ETC_PROVISIONER_JSON file with the following repositories:\n  ${all_repos//Cloud-4/Cloud-5}"
   else
-    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please update $ETC_PROVISIONER_JSON so that it contains the following repositories:\n  ${all_repos//Cloud-3/Cloud-4}\n(Following repositories are missing:${missing_repos//Cloud-3/Cloud-4})"
+    die "\nThe current provisioner configuration uses the following repositories:\n  ${all_repos}\nFor the upgrade process, please update $ETC_PROVISIONER_JSON so that it contains the following repositories:\n  ${all_repos//Cloud-4/Cloud-5}\n(Following repositories are missing:${missing_repos//Cloud-4/Cloud-5})"
   fi
 fi
 
 # ... and check that /etc/crowbar/provisioner.json doesn't contain more than
-# what we need (adding Cloud 4 repo is fine, but adding other repos: we're not
+# what we need (adding Cloud 5 repo is fine, but adding other repos: we're not
 # sure if it's an error or not)
 if test -f "$ETC_PROVISIONER_JSON"; then
   all_repos=
@@ -168,10 +168,10 @@ prepare_neutron_migration
 
 
 ### Update the repos on each node
-echo_summary "Disabling SUSE Cloud 3 repositories..."
+echo_summary "Disabling SUSE Cloud 4 repositories..."
 for node in $allocated_nodes; do
   echo "Updating repositories on ${node}..."
-  ssh "$node" 'zypper mr -d SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates'
+  ssh "$node" 'zypper mr -d SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates'
 done
 
 
