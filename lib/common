@@ -124,7 +124,7 @@ ask_yes_no_default_no() {
     echo -en "$1 [y/N] "
   fi
   read ANSWER
-  test "x$ANSWER" == "xy" -o "x$ANSWER" == "Y"
+  test "x$ANSWER" == "xy" -o "x$ANSWER" == "xY"
 }
 
 json_edit=/opt/dell/bin/json-edit
