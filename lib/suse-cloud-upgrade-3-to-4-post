@@ -40,18 +40,22 @@ if test "x$suse_cloud_version" != "x4"; then
 fi
 
 
+### Install barclamp new in Cloud 4
+zypper --non-interactive install crowbar-barclamp-trove
+
+
 ### Reinstall the barclamps
 echo_summary "Reinstalling barclamps..."
 
 # order matters because of dependencies!
 for barclamp in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
          database rabbitmq keystone swift ceph glance cinder neutron nova \
-         nova_dashboard openstack ; do
+         nova_dashboard openstack trove ; do
     /opt/dell/bin/barclamp_install.rb --rpm $barclamp
 done
 
 # optional barclamps if they're present
-for barclamp in updater suse-manager-client nfs_client cisco-ucs hyperv heat ceilometer trove tempest ; do
+for barclamp in updater suse-manager-client nfs_client cisco-ucs hyperv heat ceilometer tempest ; do
     if test -d $BARCLAMP_SRC/$i; then
         /opt/dell/bin/barclamp_install.rb --rpm $barclamp
     fi
