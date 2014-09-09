@@ -203,7 +203,7 @@ elif test ! -f "${UPGRADE_DATA_DIR}/post.run"; then
   fi
 
   if ! "${SCRIPT_LIBDIR}/suse-cloud-upgrade-2.0-to-3-post"; then
-    echo "First step of the upgrade failed. Please contact the support."
+    echo "Second step of the upgrade failed. Please contact the support."
     exit 1
   fi
 
