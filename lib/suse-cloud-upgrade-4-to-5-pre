@@ -153,7 +153,7 @@ echo_summary "Stopping OpenStack services..."
 
 for node in $allocated_nodes; do
   echo "Disabling OpenStack services on ${node}..."
-  ssh "$node" 'rcchef-client stop; if ls /etc/init.d/openstack-* &>/dev/null; then for i in /etc/init.d/openstack-*; do initscript=`basename $i`; chkconfig -d $initscript; $i stop; done; fi'
+  ssh "$node" 'rcchef-client stop; for i in /etc/init.d/openstack-* /etc/init.d/openvswitch-switch ; do if test -e $i ; then initscript=`basename $i`; chkconfig -d $initscript; $i stop; fi; done'
 done
 
 # Make sure all openstack services are down on all nodes before we stop rabbitmq
