@@ -124,7 +124,9 @@ echo $neutron_nodes > ${UPGRADE_DATA_DIR}/neutron-server.nodes
 ### Deactivate all proposals
 echo_summary "Deactivating OpenStack barclamp proposals..."
 
-for barclamp in heat ceilometer nova_dashboard nova neutron cinder glance ceph swift keystone rabbitmq database pacemaker; do
+deactivation_list="trove tempest heat ceilometer nova_dashboard nova neutron cinder glance ceph swift keystone rabbitmq database pacemaker"
+
+for barclamp in $deactivation_list; do
   applied_proposals=$(crowbar "$barclamp" list)
   if test "$applied_proposals" == "No current configurations"; then
     continue
@@ -140,7 +142,7 @@ done
 # the proposal is still listed, just after we deleted it
 sleep 10
 
-for barclamp in heat ceilometer nova_dashboard nova neutron cinder glance ceph swift keystone rabbitmq database pacemaker; do
+for barclamp in $deactivation_list; do
   applied_proposals=$(crowbar "$barclamp" list)
   if test "$applied_proposals" != "No current configurations"; then
     die "Was not able to deactivate all proposals for $barclamp."
