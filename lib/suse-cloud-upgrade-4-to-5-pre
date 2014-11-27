@@ -20,7 +20,6 @@ set -e
 
 SUSE_LOGFILE="/var/log/crowbar/upgrade/`basename $0`.log"
 source "`dirname $0`/common"
-source "`dirname $0`/helper-neutron-migration"
 
 
 if test -f "${UPGRADE_DATA_DIR}/pre.run"; then
@@ -115,12 +114,6 @@ if ! rpm -q crowbar-barclamp-pacemaker 2> /dev/null; then
 fi
 
 
-### Collect neutron-server nodes and write them to a file
-get_allocated_nodes "neutron-server"
-neutron_nodes=$get_allocated_nodes_retval
-echo $neutron_nodes > ${UPGRADE_DATA_DIR}/neutron-server.nodes
-
-
 ### Deactivate all proposals
 echo_summary "Deactivating OpenStack barclamp proposals..."
 
@@ -163,9 +156,6 @@ sleep 10
 for node in $allocated_nodes; do
   ssh "$node" 'if test -f /etc/init.d/rabbitmq-server; then chkconfig -d rabbitmq-server; /etc/init.d/rabbitmq-server stop; fi'
 done
-
-# Prepare the database migration on the neutron_server nodes
-prepare_neutron_migration
 
 
 ### Update the repos on each node

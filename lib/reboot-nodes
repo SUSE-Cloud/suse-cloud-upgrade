@@ -20,7 +20,6 @@ set -e
 
 SUSE_LOGFILE="/var/log/crowbar/upgrade/`basename $0`.log"
 source "`dirname $0`/common"
-source "`dirname $0`/helper-neutron-migration"
 
 check_crowbar_key_or_fail
 
@@ -43,13 +42,6 @@ for node in $allocated_nodes; do
     die "Packages on $node are not updated."
   fi
 done
-
-
-### Prepare the database migration on the neutron_server nodes:
-#   We need to run a migration before enabling the addition of the lbaas plugin,
-#   after the neutron-server node(s) have updated packages
-echo_summary "Finishing the neutron database migration"
-finish_neutron_migration
 
 
 ### Do the magic
