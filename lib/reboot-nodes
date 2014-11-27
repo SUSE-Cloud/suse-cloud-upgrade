@@ -38,7 +38,7 @@ get_allocated_nodes
 allocated_nodes=$get_allocated_nodes_retval
 
 for node in $allocated_nodes; do
-  if ! ssh "$node" 'rpm -q suse-cloud-release &> /dev/null && test "$(rpm -q --qf "%{version}" suse-cloud-release)" == 4'; then
+  if ! ssh "$node" 'rpm -q suse-cloud-release &> /dev/null && test "$(rpm -q --qf "%{version}" suse-cloud-release)" == 5'; then
     die "Packages on $node are not updated."
   fi
 done
