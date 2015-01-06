@@ -55,6 +55,10 @@ for node in $allocated_nodes; do
   fi
 done
 
+### Find out HA cluster information
+get_cluster_founders
+cluster_founders=$get_cluster_founders_retval
+
 
 ### Check that /etc/crowbar/provisioner.json contains updated info about repositories
 mkdir -p "${UPGRADE_DATA_DIR}/provisioner"
@@ -108,9 +112,16 @@ if test -f "$ETC_PROVISIONER_JSON"; then
 fi
 
 
-### Check if pacemaker barclamp is present (i.e. system is updated)
-if ! rpm -q crowbar-barclamp-pacemaker 2> /dev/null; then
-  die "Pacemaker barclamp not found. Are all updates installed?"
+## Check if pacemaker cluster's health is good
+echo_summary "Checking health of HA clusters..."
+failed_actions_founders=
+for founder in $cluster_founders; do
+  if ssh ${founder} 'LANG=C crm status | grep -q "^Failed actions:"'; then
+    failed_actions_founders="${failed_actions_founders}$founder "
+  fi
+done
+if [ -n "$failed_actions_founders" ] ; then
+  die "'crm status' command reports some failed actions on the clusters that the following nodes are part of: $failed_actions_founders\nClean pacemaker resources using 'crm resource cleanup' before proceeding with the upgrade."
 fi
 
 
@@ -142,13 +153,34 @@ for barclamp in $deactivation_list; do
   fi
 done
 
+# Stop chef-clients at the nodes, to ensure services shutdown in next step won't be started by chef
+for node in $allocated_nodes; do
+  echo "Stopping chef-client service on ${node}..."
+  ssh "$node" 'rcchef-client stop'
+done
+
+
+### Stop pacemaker resources in all clusters and put the nodes into standby mode
+echo_summary "Stopping pacemaker resources..."
+
+for founder in $cluster_founders; do
+  echo "Stopping crm resources on ${founder}..."
+  ssh "$founder" '
+    for type in clone group ms primitive; do
+      for resource in $(crm configure show | grep ^$type | cut -d " " -f2); do
+        crm resource stop $resource
+      done
+    done
+    '
+done
+
 
 ### Stop openstack services
 echo_summary "Stopping OpenStack services..."
 
 for node in $allocated_nodes; do
   echo "Disabling OpenStack services on ${node}..."
-  ssh "$node" 'rcchef-client stop; for i in /etc/init.d/openstack-* /etc/init.d/openvswitch-switch ; do if test -e $i ; then initscript=`basename $i`; chkconfig -d $initscript; $i stop; fi; done'
+  ssh "$node" 'for i in /etc/init.d/openstack-* /etc/init.d/openvswitch-switch /etc/init.d/ovs-usurp-config-* /etc/init.d/drbd /etc/init.d/openais; do if test -e $i ; then initscript=`basename $i`; chkconfig -d $initscript; $i stop; fi; done'
 done
 
 # Make sure all openstack services are down on all nodes before we stop rabbitmq
