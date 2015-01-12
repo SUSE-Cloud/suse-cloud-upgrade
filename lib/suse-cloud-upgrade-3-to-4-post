@@ -56,7 +56,7 @@ done
 
 # optional barclamps if they're present
 for barclamp in updater suse-manager-client nfs_client cisco-ucs hyperv heat ceilometer tempest ; do
-    if test -d $BARCLAMP_SRC/$i; then
+    if test -d /opt/dell/barclamps/$barclamp; then
         /opt/dell/bin/barclamp_install.rb --rpm $barclamp
     fi
 done
