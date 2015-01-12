@@ -43,6 +43,12 @@ fi
 ### Restart some services
 echo_summary "Restarting required services..."
 
+if test ! -f /etc/chef/amqp_passwd; then
+  grep -m1 "^amqp_pass " /etc/chef/server.rb | sed 's/amqp_pass "\([^"]*\)"/\1/g' > /etc/chef/amqp_passwd
+  chmod 600 /etc/chef/amqp_passwd
+  chown chef.root /etc/chef/amqp_passwd
+fi
+
 rcchef-solr start
 rcchef-expander start
 rcchef-server start
