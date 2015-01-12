@@ -47,6 +47,7 @@ if test ! -f /etc/chef/amqp_passwd; then
   grep -m1 "^amqp_pass " /etc/chef/server.rb | sed 's/amqp_pass "\([^"]*\)"/\1/g' > /etc/chef/amqp_passwd
   chmod 600 /etc/chef/amqp_passwd
   chown chef.root /etc/chef/amqp_passwd
+  sed -i 's:^amqp_pass ".*":amqp_pass File.read("/etc/chef/amqp_passwd").chomp:' /etc/chef/{server,solr}.rb
 fi
 
 rcchef-solr start
