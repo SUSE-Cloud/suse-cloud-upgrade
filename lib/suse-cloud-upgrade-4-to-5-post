@@ -51,6 +51,10 @@ rcchef-server start
 ### Reinstall the barclamps
 echo_summary "Reinstalling barclamps..."
 
+# remove cached crowbar.yml because of crowbar.yml format change; we will
+# reinstall all barclamps anyway
+rm -f /opt/dell/crowbar_framework/barclamps/*.yml
+
 # order matters because of dependencies!
 for barclamp in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
          database rabbitmq openstack keystone swift ceph glance cinder neutron nova \
