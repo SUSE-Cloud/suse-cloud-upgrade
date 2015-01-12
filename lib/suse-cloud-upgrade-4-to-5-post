@@ -77,6 +77,13 @@ echo_summary "Removing obsolete data..."
 ### Crowbar can run again
 echo_summary "Starting Crowbar..."
 
+# Create the secrets env
+if test ! -f /opt/dell/crowbar_framework/config/secrets.env; then
+  cat<<EOF > /opt/dell/crowbar_framework/config/secrets.env
+export SECRET_KEY_BASE=$(cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake secret)
+EOF
+fi
+
 # Make sure that all files are up-to-date
 chef-client
 rcchef-client start
