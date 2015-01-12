@@ -114,6 +114,28 @@ if ! rpm -q crowbar-barclamp-pacemaker 2> /dev/null; then
 fi
 
 
+### Check that all installed barclamps are from SUSE Cloud
+unknown_barclamps=
+for yml in /opt/dell/crowbar_framework/barclamps/*.yml; do
+  base=$(basename $yml)
+  barclamp=${base%%.yml}
+  case $barclamp in
+    crowbar|deployer|dns|ipmi|logging|network|ntp|provisioner|pacemaker|\
+    database|rabbitmq|openstack|keystone|swift|ceph|glance|cinder|neutron|nova|\
+    nova_dashboard|updater|suse_manager_client|nfs_client|cisco_ucs|hyperv|heat|ceilometer|\
+    trove|tempest)
+      ;;
+    *)
+      unknown_barclamps="$unknown_barclamps $barclamp"
+      ;;
+  esac
+done
+
+if test -n "$unknown_barclamps"; then
+  die "The following barclamps need to be manually deinstalled before the upgrade\nprocess (and can be reinstalled after the upgrade):\n  $unknown_barclamps"
+fi
+
+
 ### Deactivate all proposals
 echo_summary "Deactivating OpenStack barclamp proposals..."
 
