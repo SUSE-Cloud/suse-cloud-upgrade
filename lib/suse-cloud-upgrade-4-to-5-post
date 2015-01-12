@@ -40,6 +40,14 @@ if test "x$suse_cloud_version" != "x5"; then
 fi
 
 
+### Restart some services
+echo_summary "Restarting required services..."
+
+rcchef-solr start
+rcchef-expander start
+rcchef-server start
+
+
 ### Reinstall the barclamps
 echo_summary "Reinstalling barclamps..."
 
