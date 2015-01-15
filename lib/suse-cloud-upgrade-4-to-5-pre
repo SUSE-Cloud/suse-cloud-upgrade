@@ -192,6 +192,9 @@ done
 
 ### Disable crowbar and chef-client while packages get upgraded
 echo_summary "Stopping Crowbar..."
+# Stop the looper, so it'll get upgraded too
+pkill -f /opt/dell/bin/looper_chef_client.sh || true
+
 rcchef-client stop
 rccrowbar stop
 rm /opt/dell/crowbar_framework/.crowbar-installed-ok
