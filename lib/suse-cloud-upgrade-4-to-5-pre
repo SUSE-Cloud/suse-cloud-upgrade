@@ -201,6 +201,14 @@ rcchef-expander stop
 rcchef-solr stop
 rccouchdb stop
 rcrabbitmq-server stop
+# try to stop epmd which still runs after we stop rabbitmq; we need a sleep to
+# ensure that the rabbitmq bit is unregistered
+sleep 5
+if which rcepmd &> /dev/null; then
+  rcepmd stop
+else
+  epmd -kill || true
+fi
 
 
 ### Done
