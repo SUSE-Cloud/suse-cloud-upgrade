@@ -50,6 +50,8 @@ if test ! -f /etc/chef/amqp_passwd; then
   sed -i 's:^amqp_pass ".*":amqp_pass File.read("/etc/chef/amqp_passwd").chomp:' /etc/chef/{server,solr}.rb
 fi
 
+rcrabbitmq-server start
+rccouchdb start
 rcchef-solr start
 rcchef-expander start
 rcchef-server start

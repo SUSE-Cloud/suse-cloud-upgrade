@@ -199,6 +199,8 @@ rm /opt/dell/crowbar_framework/.crowbar-installed-ok
 rcchef-server stop
 rcchef-expander stop
 rcchef-solr stop
+rccouchdb stop
+rcrabbitmq-server stop
 
 
 ### Done
