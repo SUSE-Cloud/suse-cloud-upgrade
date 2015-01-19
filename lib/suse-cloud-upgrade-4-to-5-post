@@ -40,8 +40,29 @@ if test "x$suse_cloud_version" != "x5"; then
 fi
 
 
+### Restart some services
+echo_summary "Restarting required services..."
+
+if test ! -f /etc/chef/amqp_passwd; then
+  grep -m1 "^amqp_pass " /etc/chef/server.rb | sed 's/amqp_pass "\([^"]*\)"/\1/g' > /etc/chef/amqp_passwd
+  chmod 600 /etc/chef/amqp_passwd
+  chown chef.root /etc/chef/amqp_passwd
+  sed -i 's:^amqp_pass ".*":amqp_pass File.read("/etc/chef/amqp_passwd").chomp:' /etc/chef/{server,solr}.rb
+fi
+
+rcrabbitmq-server start
+rccouchdb start
+rcchef-solr start
+rcchef-expander start
+rcchef-server start
+
+
 ### Reinstall the barclamps
 echo_summary "Reinstalling barclamps..."
+
+# remove cached crowbar.yml because of crowbar.yml format change; we will
+# reinstall all barclamps anyway
+rm -f /opt/dell/crowbar_framework/barclamps/*.yml
 
 # order matters because of dependencies!
 for barclamp in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
@@ -52,7 +73,7 @@ done
 
 # optional barclamps if they're present
 for barclamp in updater suse-manager-client nfs_client cisco-ucs hyperv heat ceilometer trove tempest ; do
-    if test -d $BARCLAMP_SRC/$i; then
+    if test -d /opt/dell/barclamps/$barclamp; then
         /opt/dell/bin/barclamp_install.rb --rpm $barclamp
     fi
 done
@@ -64,6 +85,13 @@ echo_summary "Removing obsolete data..."
 
 ### Crowbar can run again
 echo_summary "Starting Crowbar..."
+
+# Create the secrets env
+if test ! -f /opt/dell/crowbar_framework/config/secrets.env; then
+  cat<<EOF > /opt/dell/crowbar_framework/config/secrets.env
+export SECRET_KEY_BASE=$(cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake secret)
+EOF
+fi
 
 # Make sure that all files are up-to-date
 chef-client
