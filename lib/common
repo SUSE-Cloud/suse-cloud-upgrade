@@ -208,3 +208,10 @@ get_allocated_nodes() {
 
   get_allocated_nodes_retval=$allocated_nodes
 }
+
+# each pacemaker cluster should have one founder node
+get_cluster_founders() {
+
+  local founders=$(knife search node "pacemaker_founder:true AND pacemaker_config_environment:*" -a name | grep ^name: | cut -d : -f 2)
+  get_cluster_founders_retval=$founders
+}
