@@ -21,12 +21,16 @@ UPGRADE_DATA_DIR=/var/lib/crowbar/upgrade/suse-cloud-3-to-4
 prepare_neutron_migration() {
 
   # Get nodes that have the neutron_server role
-  local neutron_nodes=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
+  local neutron_servers=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
 
-  for i in $neutron_nodes; do
-    ssh $i 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
+  for neutron_server in $neutron_servers; do
+    ssh "$neutron_server" 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
             --config-file /etc/neutron/plugins/ml2/ml2_conf.ini stamp havana'
-    # We only need to do this on one node; On a HA-setup, $neutron_nodes can
+
+    scp "`dirname $0`/neutron-icehouse-migration-helper" "${neutron_server}:/var/lib/neutron"
+    ssh "$neutron_server" "/var/lib/neutron/neutron-icehouse-migration-helper"
+
+    # We only need to doi this on one node; On a HA-setup, $neutron_servers can
     # have mutltiple entries
     break
   done
@@ -35,12 +39,12 @@ prepare_neutron_migration() {
 finish_neutron_migration() {
 
   # Get nodes that have the neutron_server role
-  local neutron_nodes=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
+  local neutron_servers=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
 
-  for i in $neutron_nodes; do
-    ssh $i 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
+  for neutron_server in $neutron_servers; do
+    ssh "$neutron_server" 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
             --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head'
-    # We only need to do this on one node; On a HA-setup, $neutron_nodes can
+    # We only need to do this on one node; On a HA-setup, $neutron_servers can
     # have mutltiple entries
     break
   done
