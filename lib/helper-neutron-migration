@@ -24,8 +24,11 @@ prepare_neutron_migration() {
   local neutron_servers=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
 
   for neutron_server in $neutron_servers; do
-    ssh "$neutron_server" 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
-            --config-file /etc/neutron/plugins/ml2/ml2_conf.ini stamp havana'
+    ssh "$neutron_server" 'source /etc/sysconfig/neutron; \
+        for i in $NEUTRON_PLUGIN_CONF; do \
+          CONF_ARGS="$CONF_ARGS --config-file $i"; \
+        done; \
+        neutron-db-manage --config-file /etc/neutron/neutron.conf $CONF_ARGS stamp havana'
 
     scp "`dirname $0`/neutron-icehouse-migration-helper" "${neutron_server}:/var/lib/neutron"
     ssh "$neutron_server" "/var/lib/neutron/neutron-icehouse-migration-helper"
@@ -42,8 +45,11 @@ finish_neutron_migration() {
   local neutron_servers=$(cat ${UPGRADE_DATA_DIR}/neutron-server.nodes)
 
   for neutron_server in $neutron_servers; do
-    ssh "$neutron_server" 'neutron-db-manage --config-file /etc/neutron/neutron.conf \
-            --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head'
+    ssh "$neutron_server" 'source /etc/sysconfig/neutron; \
+        for i in $NEUTRON_PLUGIN_CONF; do \
+          CONF_ARGS="$CONF_ARGS --config-file $i"; \
+        done; \
+        neutron-db-manage --config-file /etc/neutron/neutron.conf $CONF_ARGS upgrade head'
     # We only need to do this on one node; On a HA-setup, $neutron_servers can
     # have mutltiple entries
     break
