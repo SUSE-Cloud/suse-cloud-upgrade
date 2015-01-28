@@ -45,6 +45,11 @@ if test "x$out" != "xdefault"; then
 fi
 
 
+### Get all nodes with the neutron-l3 role
+get_allocated_nodes neutron-l3
+allocated_neutron_l3_nodes=$get_allocated_nodes_retval
+
+
 ### Check that all nodes are powered on
 get_allocated_nodes
 allocated_nodes=$get_allocated_nodes_retval
@@ -203,6 +208,18 @@ echo_summary "Stopping OpenStack services..."
 for node in $allocated_nodes; do
   echo "Disabling OpenStack services on ${node}..."
   ssh "$node" 'for i in /etc/init.d/openstack-* /etc/init.d/openvswitch-switch /etc/init.d/ovs-usurp-config-* /etc/init.d/drbd /etc/init.d/openais; do if test -e $i ; then initscript=`basename $i`; chkconfig -d $initscript; $i stop; fi; done'
+done
+
+
+### Workaround for neutron shortcoming
+# Currently neutron-ns-metadata-proxy is not stoppend on a HA setup. The running process
+# kills the update, so we need to kill it manually. Upstream is working on improving the
+# handling of external processes. Once this is achieved we don't need this part anymore
+# Defining allocated_neutron_l3_nodes earlier is connected to this
+
+for node in $allocated_neutron_l3_nodes; do
+  echo "Killing neutron-ns-metadata-proxy process on $node..."
+  ssh "$node" 'killall -q neutron-ns-metadata-proxy'
 done
 
 # Make sure all openstack services are down on all nodes before we stop rabbitmq
