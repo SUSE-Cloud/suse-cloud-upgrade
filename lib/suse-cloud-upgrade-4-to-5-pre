@@ -206,7 +206,32 @@ for node in $allocated_nodes; do
 done
 
 # Make sure all openstack services are down on all nodes before we stop rabbitmq
-sleep 10
+services_stopped=""
+count=0
+while [ "$services_stopped" != "yes" -a "$count" -lt 100 ]; do
+  echo "Waiting for OpenStack services to stop..."
+  sleep 1
+  services_stopped="yes"
+  for node in $allocated_nodes; do
+    if ssh "$node" 'shopt -s nullglob
+      for i in /etc/init.d/openstack-* ; do
+        if $i status >/dev/null ; then
+          echo "$i still running at `hostname`"; exit 0
+        fi
+      done
+      if pgrep -f neutron-ns-metadata-proxy >/dev/null; then
+        echo "neutron proxy is still runing at `hostname`"
+      fi
+      exit 1'; then
+      services_stopped="no"
+      break
+    fi
+  done
+  count=$(($count + 1))
+done
+if [ "$services_stopped" == "no" ]; then
+  echo "Some OpenStack services didn't finish in time, timeout reached."
+fi
 
 # Note: be careful that this is not run on the admin node, where we need rabbitmq!
 for node in $allocated_nodes; do
