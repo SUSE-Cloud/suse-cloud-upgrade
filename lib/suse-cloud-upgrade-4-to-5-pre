@@ -221,7 +221,6 @@ while [ "$services_stopped" != "yes" -a "$count" -lt 100 ]; do
       done
       if pgrep -f neutron-ns-metadata-proxy >/dev/null; then
         echo "neutron proxy is still runing at `hostname`"
-        exit 0
       fi
       exit 1'; then
       services_stopped="no"
