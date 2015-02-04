@@ -133,5 +133,9 @@ if test -f "$ETC_PROVISIONER_JSON"; then
 fi
 
 
+### Re-sign the PTF repos (as they got moved compared to Cloud 4)
+createrepo-cloud-ptf
+
+
 ### Done
 touch "${UPGRADE_DATA_DIR}/post.run"

@@ -35,6 +35,71 @@ if test "x$suse_cloud_version" != "x4"; then
   die "Current installed version of SUSE Cloud is not 4: $suse_cloud_version"
 fi
 
+
+echo_summary "Ensuring SUSE Cloud 5 repositories are available..."
+
+# Populate new directory for repos
+old_repos_dir=/srv/tftpboot/repos
+repos_dir=/srv/tftpboot/suse-11.3/repos
+repos12_dir=/srv/tftpboot/suse-12.0/repos
+
+mkdir -p $repos_dir
+mkdir -p $repos12_dir
+
+# Automatically create symlinks for new SMT-mirrored repos if they exist
+for repo in SUSE-Cloud-5-Pool \
+            SUSE-Cloud-5-Updates; do
+  cloud_dir=$repos_dir/$repo
+  smt_dir=/srv/www/htdocs/repo/\$RCE/$repo/sle-11-x86_64
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+done
+
+# For SLE repos, try to re-use the same setup as before, or fallback to
+# symlinks to SMT-mirrored repos
+for repo in SLES11-SP3-Pool \
+            SLES11-SP3-Updates \
+            SLE11-HAE-SP3-Pool \
+            SLE11-HAE-SP3-Updates; do
+  cloud_dir=$repos_dir/$repo
+  smt_dir=/srv/www/htdocs/repo/\$RCE/$repo/sle-11-x86_64
+
+  test -e $cloud_dir && continue
+
+  if test -L $old_repos_dir/$repo -a -d "$(readlink $old_repos_dir/$repo)"; then
+    ln -s "$(readlink $old_repos_dir/$repo)" $cloud_dir
+  elif test -d $old_repos_dir/$repo; then
+    ln -s $old_repos_dir/$repo $cloud_dir
+  elif test -d $smt_dir; then
+    ln -s $smt_dir $cloud_dir
+  fi
+done
+
+# Create symlinks for the SLE12 SMT-mirrored repos if they exist
+cloud_dir=$repos12_dir/SLES12-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/x86_64/product
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=$repos12_dir/SLES12-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/x86_64/update
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=$repos12_dir/SLE-12-Cloud-Compute5-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/12-Cloud-Compute/5/x86_64/product
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=$repos12_dir/SLE-12-Cloud-Compute5-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/12-Cloud-Compute/5/x86_64/update
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=$repos12_dir/SUSE-Enterprise-Storage-1.0-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/1.0/x86_64/product
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=$repos12_dir/SUSE-Enterprise-Storage-1.0-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+
 echo_summary "Performing sanity checks..."
 
 
