@@ -297,6 +297,9 @@ while [ "$services_stopped" != "yes" -a "$count" -lt 100 ]; do
   for node in $allocated_nodes; do
     if ssh "$node" 'shopt -s nullglob
       for i in /etc/init.d/openstack-* ; do
+        if [ "$i" == /etc/init.d/openstack-neutron-ovs-cleanup ]; then
+          continue
+        fi
         if $i status >/dev/null ; then
           echo "$i still running at `hostname`"; exit 0
         fi
