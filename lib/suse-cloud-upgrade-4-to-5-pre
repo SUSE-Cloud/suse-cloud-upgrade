@@ -120,6 +120,11 @@ echo_summary "Deactivating OpenStack barclamp proposals..."
 deactivation_list="trove tempest heat ceilometer nova_dashboard nova neutron cinder glance ceph swift keystone rabbitmq database pacemaker"
 
 for barclamp in $deactivation_list; do
+  if [ ! -f "/opt/dell/crowbar_framework/barclamps/$barclamp.yml" ]; then
+    echo "Skipping deactivation of $barclamp barclamp."
+    continue
+  fi
+
   applied_proposals=$(crowbar "$barclamp" list)
   if test "$applied_proposals" == "No current configurations"; then
     continue
