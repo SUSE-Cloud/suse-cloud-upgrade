@@ -258,7 +258,7 @@ echo_summary "Stopping pacemaker resources..."
 for founder in $cluster_founders; do
   echo "Stopping crm resources on ${founder}..."
   ssh "$founder" '
-    for type in clone group ms primitive; do
+    for type in clone ms primitive; do
       for resource in $(crm configure show | grep ^$type | cut -d " " -f2); do
         crm resource stop $resource
       done
