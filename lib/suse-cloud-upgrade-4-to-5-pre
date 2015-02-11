@@ -111,21 +111,6 @@ if test "x$out" != "xdefault"; then
 fi
 
 
-### Check that all nodes are powered on
-get_allocated_nodes
-allocated_nodes=$get_allocated_nodes_retval
-
-for node in $allocated_nodes; do
-  if ! ssh "$node" true 2> /dev/null; then
-    die "Cannot reach $node; all allocated nodes must be powered on!"
-  fi
-done
-
-### Find out HA cluster information
-get_cluster_founders
-cluster_founders=$get_cluster_founders_retval
-
-
 ### Check that /etc/crowbar/provisioner.json contains updated info about repositories
 mkdir -p "${UPGRADE_DATA_DIR}/provisioner"
 OLD_PROVISIONER_JSON="${UPGRADE_DATA_DIR}/provisioner/default-4.json"
@@ -212,18 +197,6 @@ for repo in SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates; do
   fi
 done
 
-## Check if pacemaker cluster's health is good
-echo_summary "Checking health of HA clusters..."
-failed_actions_founders=
-for founder in $cluster_founders; do
-  if ssh ${founder} 'LANG=C crm status | grep -q "^Failed actions:"'; then
-    failed_actions_founders="${failed_actions_founders}$founder "
-  fi
-done
-if [ -n "$failed_actions_founders" ] ; then
-  die "'crm status' command reports some failed actions on the clusters that the following nodes are part of: $failed_actions_founders\nClean pacemaker resources using 'crm resource cleanup' before proceeding with the upgrade."
-fi
-
 
 ### Check that all installed barclamps are from SUSE Cloud
 unknown_barclamps=
@@ -244,6 +217,35 @@ done
 
 if test -n "$unknown_barclamps"; then
   die "The following barclamps need to be manually deinstalled before the upgrade\nprocess (and can be reinstalled after the upgrade):\n  $unknown_barclamps"
+fi
+
+
+### Check that all nodes are powered on
+get_allocated_nodes
+allocated_nodes=$get_allocated_nodes_retval
+
+for node in $allocated_nodes; do
+  if ! ssh "$node" true 2> /dev/null; then
+    die "Cannot reach $node; all allocated nodes must be powered on!"
+  fi
+done
+
+
+### Find out HA cluster information
+get_cluster_founders
+cluster_founders=$get_cluster_founders_retval
+
+
+## Check if pacemaker cluster's health is good
+echo_summary "Checking health of HA clusters..."
+failed_actions_founders=
+for founder in $cluster_founders; do
+  if ssh ${founder} 'LANG=C crm status | grep -q "^Failed actions:"'; then
+    failed_actions_founders="${failed_actions_founders}$founder "
+  fi
+done
+if [ -n "$failed_actions_founders" ] ; then
+  die "'crm status' command reports some failed actions on the clusters that the following nodes are part of: $failed_actions_founders\nClean pacemaker resources using 'crm resource cleanup' before proceeding with the upgrade."
 fi
 
 
