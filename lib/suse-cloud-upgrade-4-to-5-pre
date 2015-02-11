@@ -20,6 +20,7 @@ set -e
 
 SUSE_LOGFILE="/var/log/crowbar/upgrade/`basename $0`.log"
 source "`dirname $0`/common"
+source "`dirname $0`/repos-check"
 
 
 if test -f "${UPGRADE_DATA_DIR}/pre.run"; then
@@ -179,8 +180,42 @@ if test -f "$ETC_PROVISIONER_JSON"; then
       exit 0
     fi
   fi
+
+  # Skip the repository checks if they are defined in provisioner.json:
+  # there might be non-default (and/or network) path
+  for repo in SLE-Cloud SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates; do
+    # json_read is part of crowbar package
+    common_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.common.${repo//./\\\\.}.url )"
+    sles11_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-11\\.3.${repo//./\\\\.}.url )"
+
+    if [ -n "$common_check" -o -n "$sles11_check" ]; then
+      REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
+    fi
+  done
 fi
 
+
+### Check if repositories are prepared for the upgrade
+# We need to ensure that Cloud5 main repository and update repos are in place
+
+# FIXME repos that do not exist yet
+REPOS_SKIP_CHECKS+=" Cloud SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
+
+check_media_content \
+    Cloud \
+    /srv/tftpboot/suse-11.3/repos/Cloud \
+    1558be86e7354d31e71e7c8c2574031a
+
+# This is the check for repositories available for the nodes
+check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+
+# Now, check if NCC provides Cloud-5 repositories for the admin node
+for repo in SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates; do
+  if ! grep -q "$repo" /etc/zypp/repos.d/*; then
+    die "Repository $repo does not seem to be configured at admin node. Is the SUSE Cloud 5 product correctly registered?"
+  fi
+done
 
 ## Check if pacemaker cluster's health is good
 echo_summary "Checking health of HA clusters..."
