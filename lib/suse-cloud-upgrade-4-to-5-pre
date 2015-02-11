@@ -111,11 +111,6 @@ if test "x$out" != "xdefault"; then
 fi
 
 
-### Get all nodes with the neutron-l3 role
-get_allocated_nodes neutron-l3
-allocated_neutron_l3_nodes=$get_allocated_nodes_retval
-
-
 ### Check that all nodes are powered on
 get_allocated_nodes
 allocated_nodes=$get_allocated_nodes_retval
@@ -250,6 +245,11 @@ done
 if test -n "$unknown_barclamps"; then
   die "The following barclamps need to be manually deinstalled before the upgrade\nprocess (and can be reinstalled after the upgrade):\n  $unknown_barclamps"
 fi
+
+
+### Get all nodes with the neutron-l3 role before we deactivate the proposals
+get_allocated_nodes neutron-l3
+allocated_neutron_l3_nodes=$get_allocated_nodes_retval
 
 
 ### Deactivate all proposals
