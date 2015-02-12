@@ -179,7 +179,7 @@ fi
 # We need to ensure that Cloud5 main repository and update repos are in place
 
 # FIXME repos that do not exist yet
-REPOS_SKIP_CHECKS+=" Cloud SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
+REPOS_SKIP_CHECKS+=" Cloud SUSE-Cloud-5-Updates"
 
 check_media_content \
     Cloud \
