@@ -178,13 +178,10 @@ fi
 ### Check if repositories are prepared for the upgrade
 # We need to ensure that Cloud5 main repository and update repos are in place
 
-# FIXME repos that do not exist yet
-REPOS_SKIP_CHECKS+=" Cloud"
-
 check_media_content \
     Cloud \
     /srv/tftpboot/suse-11.3/repos/Cloud \
-    1558be86e7354d31e71e7c8c2574031a
+    #1558be86e7354d31e71e7c8c2574031a
 
 # This is the check for repositories available for the nodes
 check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
