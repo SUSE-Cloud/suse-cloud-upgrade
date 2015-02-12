@@ -190,10 +190,10 @@ check_media_content \
 check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
 check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
 
-# Now, check if NCC provides Cloud-5 repositories for the admin node
+# Now, check if NCC provides Cloud-5 repositories for the admin server
 for repo in SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates; do
   if ! grep -q "$repo" /etc/zypp/repos.d/*; then
-    die "Repository $repo does not seem to be configured at admin node. Is the SUSE Cloud 5 product correctly registered?"
+    die "Repository $repo does not seem to be configured on the admin server.\nIs the SUSE Cloud 5 product correctly registered?"
   fi
 done
 
