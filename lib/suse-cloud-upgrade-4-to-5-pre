@@ -179,7 +179,7 @@ fi
 # We need to ensure that Cloud5 main repository and update repos are in place
 
 # FIXME repos that do not exist yet
-REPOS_SKIP_CHECKS+=" Cloud SUSE-Cloud-5-Updates"
+REPOS_SKIP_CHECKS+=" Cloud"
 
 check_media_content \
     Cloud \
@@ -188,7 +188,8 @@ check_media_content \
 
 # This is the check for repositories available for the nodes
 check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+#check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+check_repo_tag key     11.3 SUSE-Cloud-5-Updates
 
 # Now, check if NCC provides Cloud-5 repositories for the admin server
 for repo in SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates; do
