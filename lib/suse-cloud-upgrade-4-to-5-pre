@@ -281,6 +281,10 @@ done
 sleep 10
 
 for barclamp in $deactivation_list; do
+  if [ ! -f "/opt/dell/crowbar_framework/barclamps/$barclamp.yml" ]; then
+    continue
+  fi
+
   applied_proposals=$(crowbar "$barclamp" list)
   if test "$applied_proposals" != "No current configurations"; then
     die "Was not able to deactivate all proposals for $barclamp."
