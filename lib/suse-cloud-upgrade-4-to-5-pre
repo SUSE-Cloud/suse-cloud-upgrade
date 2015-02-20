@@ -328,7 +328,7 @@ done
 
 for node in $allocated_neutron_l3_nodes; do
   echo "Killing neutron-ns-metadata-proxy process on $node..."
-  ssh "$node" 'killall -q neutron-ns-metadata-proxy'
+  ssh "$node" 'killall -q neutron-ns-metadata-proxy || true'
 done
 
 # Make sure all openstack services are down on all nodes before we stop rabbitmq
