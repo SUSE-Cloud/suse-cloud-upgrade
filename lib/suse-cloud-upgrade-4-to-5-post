@@ -148,5 +148,38 @@ fi
 createrepo-cloud-ptf
 
 
+### Update barclamp proposals to new settings that we prefer
+if [ -f "/opt/dell/crowbar_framework/barclamps/pacemaker.yml" ]; then
+  # Move pacemaker from multicast to unicast, as it's more solid (Cloud 4 to
+  # Cloud 5 only)
+  if test "x$suse_cloud_version" != "x5"; then
+    die "The pacemaker multicast -> unicast migration is not needed anymore."
+  fi
+
+  proposals=$(crowbar pacemaker proposal list)
+
+  if [ "$proposals" != "No current proposals" ]; then
+    echo_summary "Migrating pacemaker proposals to Unicast transport..."
+
+    mkdir -p "${UPGRADE_DATA_DIR}/pacemaker"
+
+    for proposal in $proposals; do
+      proposal_json="${UPGRADE_DATA_DIR}/pacemaker/${proposal}.json"
+
+      crowbar pacemaker proposal show $proposal > "$proposal_json"
+
+      proposal_transport=$(json_read "$proposal_json" attributes.pacemaker.corosync.transport)
+      if [ "$proposal_transport" != "udpu" ]; then
+        echo "Migrating pacemaker proposal $proposal to udpu transport..."
+        cp -a "$proposal_json" "${proposal_json}.migrated"
+        $json_edit "${proposal_json}.migrated" -a "attributes.pacemaker.corosync.transport" -v "udpu"
+        # Do not fail upgrade process because of possible validation issues in proposal
+        crowbar pacemaker proposal edit $proposal --file "${proposal_json}.migrated" || true
+      fi
+    done
+  fi
+fi
+
+
 ### Done
 touch "${UPGRADE_DATA_DIR}/post.run"
