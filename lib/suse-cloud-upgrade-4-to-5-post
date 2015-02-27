@@ -104,6 +104,13 @@ export SECRET_KEY_BASE=$(cd /opt/dell/crowbar_framework && RAILS_ENV=production 
 EOF
 fi
 
+# Remove leftover file from Cloud 3 that breaks the update
+for file in /opt/dell/crowbar_framework/db/migrate/*_create_sessions.rb; do
+  if ! rpm -qf $file &> null; then
+    rm $file
+  fi
+done
+
 # Make sure that all files are up-to-date
 chef-client
 rcchef-client start
