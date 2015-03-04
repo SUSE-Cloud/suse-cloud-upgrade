@@ -112,7 +112,7 @@ if test $DO_STATUS -eq 1; then
     echo
     echo "Upgrade from SUSE Cloud 4 to SUSE Cloud 5 has been started."
     echo
-    echo "Please update the packages on the Administration Server, with \"zypper up\"."
+    echo "Please update the packages on the Administration Server, with \"zypper dup --from SUSE-Cloud-5-Pool --from SUSE-Cloud-5-Updates\"."
   elif test "x$suse_cloud_version" == "x5"; then
     echo
     echo "No upgrade available."
