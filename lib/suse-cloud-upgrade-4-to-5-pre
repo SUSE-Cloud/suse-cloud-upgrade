@@ -219,6 +219,10 @@ fi
 
 
 ### Check that all nodes are powered on
+if crowbar node_state status | grep -v "Ready$"; then
+  die "All nodes must be in \"ready\" state!"
+fi
+
 get_allocated_nodes
 allocated_nodes=$get_allocated_nodes_retval
 
