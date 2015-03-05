@@ -134,7 +134,7 @@ if test -f "$ETC_PROVISIONER_JSON"; then
     # drop bits about Cloud 4 repos
     for repo in SUSE-Cloud-4-{Pool,Updates}; do
       attr_repo="${repo//./\\.}"
-      $json_edit "$NEW_PROVISIONER_JSON" -a "attributes.provisioner.suse.autoyast.repos.${attr_repo}" --remove
+      $json_edit "$NEW_PROVISIONER_JSON" -a "attributes.provisioner.suse.autoyast.suse-11\.3.repos.${attr_repo}" --remove
     done
 
     # add/update bits about other repos
@@ -142,7 +142,7 @@ if test -f "$ETC_PROVISIONER_JSON"; then
       url="`get_repo_url_from "$repo" "$ETC_PROVISIONER_JSON"`"
       if test -n "$url"; then
         attr_repo="${repo//./\\.}"
-        $json_edit "$NEW_PROVISIONER_JSON" -a "attributes.provisioner.suse.autoyast.repos.${attr_repo}.url" -v "$url"
+        $json_edit "$NEW_PROVISIONER_JSON" -a "attributes.provisioner.suse.autoyast.suse-11\.3.repos.${attr_repo}.url" -v "$url"
       fi
     done
 
