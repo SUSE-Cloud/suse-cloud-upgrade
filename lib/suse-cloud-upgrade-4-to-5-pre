@@ -384,6 +384,12 @@ for node in $allocated_nodes; do
   ssh "$node" 'zypper mr -d SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates'
 done
 
+# Remove packages that are not properly obsoleted
+for node in $allocated_nodes; do
+  echo "Removing obsolete packages on ${node}..."
+  ssh "$node" 'zypper rm -n --clean-deps ceph'
+done
+
 
 ### Disable crowbar and chef-client while packages get upgraded
 echo_summary "Stopping Crowbar..."
