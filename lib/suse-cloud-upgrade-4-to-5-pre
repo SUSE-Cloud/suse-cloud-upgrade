@@ -165,10 +165,9 @@ if test -f "$ETC_PROVISIONER_JSON"; then
   # there might be non-default (and/or network) path
   for repo in SLE-Cloud SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates; do
     # json_read is part of crowbar package
-    common_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.common.${repo//./\\\\.}.url )"
-    sles11_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-11\\.3.${repo//./\\\\.}.url )"
+    sles11_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url )"
 
-    if [ -n "$common_check" -o -n "$sles11_check" ]; then
+    if [ -n "$sles11_check" ]; then
       REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
     fi
   done
@@ -188,13 +187,13 @@ fi
 
 check_media_content \
     Cloud \
-    /srv/tftpboot/suse-11.3/repos/Cloud \
+    /srv/tftpboot/suse-11.3/x86_64/repos/Cloud \
     #1558be86e7354d31e71e7c8c2574031a
 
 # This is the check for repositories available for the nodes
-check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-#check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
-check_repo_tag key     11.3 SUSE-Cloud-5-Updates
+check_repo_tag summary 11.3 x86_64 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+#check_repo_tag repo    11.3 x86_64 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+check_repo_tag key     11.3 x86_64 SUSE-Cloud-5-Updates
 
 # Now, check if NCC provides Cloud-5 repositories for the admin server
 for repo in SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates; do
