@@ -187,6 +187,27 @@ if [ -f "/opt/dell/crowbar_framework/barclamps/pacemaker.yml" ]; then
   fi
 fi
 
+### Updating default session timeout in nova_dashboard
+proposals=$(crowbar nova_dashboard proposal list)
+if [ "$proposals" != "No current proposals" ]; then
+  echo_summary "Updating Horizon session timeout due to new Keystone token expiration setting..."
+
+  work_dir="${UPGRADE_DATA_DIR}/nova_dashboard"
+  mkdir -p $work_dir
+
+  for proposal in $proposals; do
+    proposal_json="$work_dir/${proposal}.json"
+
+    crowbar nova_dashboard proposal show $proposal > "$proposal_json"
+    
+    cp -a "$proposal_json" "${proposal_json}.migrated"
+    # The Horizon session timeout has been reduced to 240 minutes down from 1440 minutes
+    # in order to match the Keystone token timeout (14400 seconds = 240 minutes)
+    $json_edit "${proposal_json}.migrated" -ra "attributes.nova_dashboard.session_timeout" -v 240
+    # Do not fail upgrade process because of possible validation issues in proposal
+    crowbar nova_dashboard proposal edit $proposal --file "${proposal_json}.migrated" || true
+  done
+fi
 
 ### Done
 touch "${UPGRADE_DATA_DIR}/post.run"
