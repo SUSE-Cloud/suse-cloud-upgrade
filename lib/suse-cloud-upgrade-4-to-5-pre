@@ -176,7 +176,7 @@ fi
 # also check that updating the provisioner proposal works (and there's no
 # invalid data)
 if test -f "$ETC_PROVISIONER_JSON"; then
-  if ! crowbar pacemaker proposal edit default --file "$OLD_PROVISIONER_JSON"; then
+  if ! crowbar provisioner proposal edit default --file "$OLD_PROVISIONER_JSON"; then
     die "The provisioner proposal cannot be automatically edited.\nMake sure that the current proposal is valid (by editing and saving it)!"
   fi
 fi
